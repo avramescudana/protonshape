@@ -31,7 +31,7 @@ The dipole-proton cross section $\sigma^p_\mathrm{dip}(\boldsymbol{b},\boldsymbo
 # ╔═╡ 893ba12a-c926-4cdc-912c-5c3a0f219dc2
 md"#### Photon vector meson wavefunction overlap
 The expressions are taken from [arXiv:hep-ph/0606272](https://arxiv.org/abs/hep-ph/0606272)
-$$\begin{aligned}(\Psi^*_V\Psi)_T&=\hat{e}_f e\dfrac{N_c}{\pi z(1-z)}\left\{m_f^2 K_0(\epsilon r)\phi_T(r,z)-[z^2+(1-z)]\epsilon K_1(\epsilon r)\partial_r \phi_T(r,z)\right\}\\
+$$\begin{aligned}(\Psi^*_V\Psi)_T&=\hat{e}_f e\dfrac{N_c}{\pi z(1-z)}\left\{m_f^2 K_0(\epsilon r)\phi_T(r,z)-[z^2+(1-z)^2]\epsilon K_1(\epsilon r)\partial_r \phi_T(r,z)\right\}\\
 (\Psi^*_V\Psi)_L&=\hat{e}_f e\dfrac{N_c}{\pi}2Qz(1-z)K_0(\epsilon r)\left[M_V\phi_L(r,z)+\delta \dfrac{m_f^2-\nabla_r^2}{M_vz(1-z)}\phi_L(r,z)\right]
 \end{aligned}$$
 
@@ -60,7 +60,10 @@ begin
 	e = √(4π*αₑₘ) # QED coupling
 	
 	êf = 2 # effective charge, 2 for J/ψ
-	mf = 1.27 # [GeV] mass of charm quark
+	
+	# mf = 1.27 # [GeV] mass of charm quark
+	mf = 1.5 # [GeV] mass of charm quark, used in GBW fit
+	
 	δ = 1 # matched to other models, either 0 or 1
 	Mᵥ = 3.1 # [GeV] mass of J/ψ
 
@@ -99,10 +102,11 @@ end
 # ╔═╡ a61eb470-b3f8-4739-8533-5476f8ff93bd
 begin
 	∂ᵣ = Differential(r)
-	∂ᵣ_sq = Differential(Differential(r))
-	# ∇ᵣ = 1/r * ∂ᵣ + ∂ᵣ_sq
 
 	∂ᵣϕₜ(r,z) = expand_derivatives(∂ᵣ(ϕ(r,z,"T")))
+
+	# ∇ᵣ² = 1/r * ∂ᵣ + ∂ᵣ * ∂ᵣ
+	∇ᵣϕₗ(r,z) = 1/r * expand_derivatives(∂ᵣ(ϕ(r,z,"L"))) + expand_derivatives(∂ᵣ(∂ᵣ(ϕ(r,z,"L"))))
 end
 
 # ╔═╡ 69528f60-33c4-4c84-9e8d-c61c7cb4c599
@@ -111,17 +115,65 @@ function ΨᵥΨ(Q², r, z, λ)
 	if λ=="T"
 		factorλ = 1 / (z * (1-z))
 		term1 = mf * mf * besselk(0, ϵ(z, Q²) * r) * ϕ(r,z,λ)
-		term2 = (z * z + (1-z)) * ϵ(z, Q²) * besselk(1, ϵ(z, Q²) * r) * ∂ᵣϕₜ(r,z)
-		# term2 = 0
+		term2 = - (z * z + (1-z) * (1-z)) * ϵ(z, Q²) * besselk(1, ϵ(z, Q²) * r) * ∂ᵣϕₜ(r,z)
 	elseif λ=="L"
-		factorλ = 2 * sqrt(Q²) * z * (1-z)
+		factorλ = 2 * sqrt(Q²) * z * (1-z) * besselk(0, ϵ(z, Q²) * r)
+		term1 = Mᵥ * ϕ(r,z,λ)
+		term2 = δ / (Mᵥ * z * (1-z)) * (mf * mf * ϕ(r,z,λ) - ∇ᵣϕₗ(r,z))
 	end
-	# return factor * factorλ * (term1 + term2)
-	return term2
+	return factor * factorλ * (term1 + term2) 
 end
 
+# ╔═╡ 927bce9d-b61e-4886-9775-404bf37e7c48
+md"Symbolic expressions for $(\Psi_V\Psi^*)_{T,L}$"
+
+# ╔═╡ 17bab355-00e5-4288-8955-2c5f5f66e77b
+ΨᵥΨ(Q², r, z, "T")
+
 # ╔═╡ acef09fd-0934-41e4-bbda-fa23de9f6b33
-ΨᵥΨ(2, 1, 0.1, "T")
+ΨᵥΨ(Q², r, z, "L")
+
+# ╔═╡ 0096ee88-5586-4721-9792-51adf979fa71
+md"
+---
+
+#### GBW dipole cross section
+
+$$\sigma_{q\overline{q}}^\mathrm{GBW}(x,r)=\sigma_0 \left(1-\mathrm{e}^{-r^2 Q_s^2(x)/4}\right)$$
+
+where $Q_s^2(x)=(x_0/x)^{\lambda_{\mathrm{GBW}}}$.
+
+---
+"
+
+# ╔═╡ 9d4c1960-73da-42d4-a64b-78b104387ad4
+md"##### Parameters"
+
+# ╔═╡ ad97b327-3cf1-4761-90cb-00a459be634a
+begin
+	# fit to F₂ data including charm quarks
+	# mc = 1.5 GeV used in the fit
+	
+	σ₀ = 29 # [mb]
+	Λ = 0.28
+	x₀ = 4 * 10^(-5)
+end
+
+# ╔═╡ 9aec76c5-cfeb-4522-8fae-58842413be9e
+md"##### Functions"
+
+# ╔═╡ 8c104443-fbb5-4392-a714-e48ddce0768f
+@variables x
+
+# ╔═╡ 54eb21fd-2a24-4b0d-b05b-78c19bdc729a
+function σqq̅(x,r)
+	Qₛ = (x₀ / x) ^ Λ
+	term_exp = 1 - exp(- r * r * Qₛ / 4)
+	return σ₀ * term_exp
+end
+
+# ╔═╡ 837e8db4-effe-4131-bde3-972325a994ae
+σqq̅(x,r)
 
 # ╔═╡ 9c395345-b5c3-439c-a663-e815ecb287f6
 md"
@@ -1050,7 +1102,16 @@ version = "5.11.0+0"
 # ╠═65f79988-11f5-4454-bac3-8cc680205019
 # ╠═6b92005d-0098-42a0-9c7b-1b9fb36b97c5
 # ╠═69528f60-33c4-4c84-9e8d-c61c7cb4c599
+# ╟─927bce9d-b61e-4886-9775-404bf37e7c48
+# ╠═17bab355-00e5-4288-8955-2c5f5f66e77b
 # ╠═acef09fd-0934-41e4-bbda-fa23de9f6b33
+# ╟─0096ee88-5586-4721-9792-51adf979fa71
+# ╟─9d4c1960-73da-42d4-a64b-78b104387ad4
+# ╠═ad97b327-3cf1-4761-90cb-00a459be634a
+# ╠═9aec76c5-cfeb-4522-8fae-58842413be9e
+# ╠═8c104443-fbb5-4392-a714-e48ddce0768f
+# ╠═54eb21fd-2a24-4b0d-b05b-78c19bdc729a
+# ╠═837e8db4-effe-4131-bde3-972325a994ae
 # ╟─9c395345-b5c3-439c-a663-e815ecb287f6
 # ╟─223f2010-a5fb-4bdd-84b9-b2483a40a400
 # ╟─00000000-0000-0000-0000-000000000001
