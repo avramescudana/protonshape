@@ -4,10 +4,12 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 797c2f63-d6c7-4287-842f-df32f37ba0de
+# ╔═╡ 89e17f34-ef6b-4537-b634-6f66f829489c
 begin
 	using SpecialFunctions # Modified Bessel functions of second kind
 	using Symbolics # Symbolic calculation, partial derivatives
+	using FFTW # Fast Fourier Transform, bindings to FFTW
+	using LinearAlgebra
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -16,6 +18,9 @@ Simple calculation of coferent and incoferent diffraction cross section for excl
 
 ---
 "
+
+# ╔═╡ ec25d46c-ee6e-4b99-9a9c-3d36256223c0
+md"### Import packages"
 
 # ╔═╡ 47bd04c7-7db4-4de3-940f-3dfb7af1dd51
 md"### Scattering amplitude
@@ -45,9 +50,6 @@ $$\phi_{T,L}(r,z)=\mathcal{N}_{T,L}z(1-z)\exp\left(-\dfrac{m_f^2\mathcal{R}^2}{8
 The parameters $\mathcal{N}_{T,L}$ and $\mathcal{R}$ are determined from the normalization and decay width conditions. 
 "
 
-# ╔═╡ 71f9d53f-9ae7-4043-bf0d-218a16b29da9
-md"##### Import packages"
-
 # ╔═╡ 60264611-33c0-43ce-8e28-6687163cd669
 md"##### Parameters"
 
@@ -63,6 +65,7 @@ begin
 	
 	# mf = 1.27 # [GeV] mass of charm quark
 	mf = 1.5 # [GeV] mass of charm quark, used in GBW fit
+	mₚ = 0.938 # [GeV] mass of proton
 	
 	δ = 1 # matched to other models, either 0 or 1
 	Mᵥ = 3.1 # [GeV] mass of J/ψ
@@ -73,13 +76,26 @@ begin
 	Nₜ = 0.578 
 	Nₗ = 0.575
 	R² = 2.3 # [GeV^-2]
+
+	Q² = 0 # data for J/ψ photoproduction at Q²=0
+	W = 100 # [GeV]
 end
+
+# ╔═╡ 03f627f3-f72e-4f67-bc0c-822e491fd81d
+function xp(t)
+	nom = Mᵥ*Mᵥ + Q² - t
+	den = W*W + Q² - mₚ*mₚ
+	return nom/den
+end
+
+# ╔═╡ b0820c13-089b-485b-948f-103b20773c90
+xₚ = xp(0)
 
 # ╔═╡ d4f451d1-4a4b-4582-b4b9-9728bdebc25b
 md"##### Functions"
 
 # ╔═╡ 0b4680a1-b139-4720-87d4-62025e30feba
-@variables Q², r, z
+@variables r, z
 
 # ╔═╡ 65f79988-11f5-4454-bac3-8cc680205019
 ϵ(z, Q²) = sqrt(z * (1-z) * Q² + mf * mf)
@@ -110,7 +126,7 @@ begin
 end
 
 # ╔═╡ 69528f60-33c4-4c84-9e8d-c61c7cb4c599
-function ΨᵥΨ(Q², r, z, λ)
+function ΨᵥΨ(Q²,r,z,λ)
 	factor = êf * e * Nc / π
 	if λ=="T"
 		factorλ = 1 / (z * (1-z))
@@ -128,10 +144,10 @@ end
 md"Symbolic expressions for $(\Psi_V\Psi^*)_{T,L}$"
 
 # ╔═╡ 17bab355-00e5-4288-8955-2c5f5f66e77b
-ΨᵥΨ(Q², r, z, "T")
+ΨᵥΨ(Q²,r,z,"T")
 
 # ╔═╡ acef09fd-0934-41e4-bbda-fa23de9f6b33
-ΨᵥΨ(Q², r, z, "L")
+ΨᵥΨ(Q²,r,z,"L")
 
 # ╔═╡ 0096ee88-5586-4721-9792-51adf979fa71
 md"
@@ -142,6 +158,16 @@ md"
 $$\sigma_{q\overline{q}}^\mathrm{GBW}(x,r)=\sigma_0 \left(1-\mathrm{e}^{-r^2 Q_s^2(x)/4}\right)$$
 
 where $Q_s^2(x)=(x_0/x)^{\lambda_{\mathrm{GBW}}}$.
+
+Let us introduce an impact parameter dependence 
+
+$$\dfrac{\mathrm{d}\sigma_{q\overline{q}}}{\mathrm{d}^2\boldsymbol{b}}=\sigma_0\left(1-\mathrm{e}^{-r^2 Q_s^2(x,b)/4}\right)$$
+
+where $Q_s^2(x,b)=(x_0/x)^{\lambda_{\mathrm{GBW}}}T_G(b)$ with a Gaussianthickness function
+
+$$T_G(b)=\dfrac{1}{2\pi B_G}\mathrm{e}^{-\frac{b^2}{2B_G}}$$
+
+Here the parameter $B_G$ is free and chosen to fit $\mathrm{d}\sigma/\mathrm{d}t$.
 
 ---
 "
@@ -157,23 +183,64 @@ begin
 	σ₀ = 29 # [mb]
 	Λ = 0.28
 	x₀ = 4 * 10^(-5)
+
+	Bₚ = 4 # [GeV^-2]
 end
 
 # ╔═╡ 9aec76c5-cfeb-4522-8fae-58842413be9e
 md"##### Functions"
 
 # ╔═╡ 8c104443-fbb5-4392-a714-e48ddce0768f
-@variables x
+@variables t, b
+
+# ╔═╡ 96737eda-4f4b-427f-9644-a9b9540b360d
+xp(t)
+
+# ╔═╡ 15e890db-7c65-4dba-abf9-298c42a7660e
+# @variables xₚ
+
+# ╔═╡ 43a5f98e-3d18-4e9a-9382-2b397bdcf3d5
+# function xₚ(t)
+# 	nom = Mᵥ*Mᵥ + Q² - t
+# 	den = W*W + Q² - mₚ*mₚ
+# 	return nom/den
+# end
+
+# ╔═╡ 34c2fd53-67ec-4fdc-b0fd-3490fceb3b0d
+# xₚ(t)
+
+# ╔═╡ 281fcffe-f9b2-4bad-8725-f6761544e112
+function Qₛ(xₚ)
+	return (x₀ / xₚ) ^ Λ
+end
+
+# ╔═╡ 23253186-7857-4051-a9e3-538cc6527419
+function T(b)
+	norm = 1 / (2π * Bₚ)
+	term_exp = exp(- b * b / (2 * Bₚ * Bₚ))
+	return norm * term_exp
+end
+
+# ╔═╡ cfe26cfa-cfa3-4a9a-aaf0-2a8ea0413670
+T(b)
 
 # ╔═╡ 54eb21fd-2a24-4b0d-b05b-78c19bdc729a
-function σqq̅(x,r)
-	Qₛ = (x₀ / x) ^ Λ
-	term_exp = 1 - exp(- r * r * Qₛ / 4)
+function σqq̅(xₚ,r)
+	term_exp = 1 - exp(- r * r * Qₛ(xₚ) / 4)
 	return σ₀ * term_exp
 end
 
 # ╔═╡ 837e8db4-effe-4131-bde3-972325a994ae
-σqq̅(x,r)
+σqq̅(xₚ,r)
+
+# ╔═╡ be723fcc-c84b-4757-aaaf-b07b5e418856
+function dσqq̅db(xₚ,r,b)
+	term_exp = 1 - exp(- r * r * Qₛ(xₚ) * T(b) / 4)
+	return σ₀ * term_exp
+end
+
+# ╔═╡ e0447f20-2597-4236-a5bd-8ca1b1053213
+dσqq̅db(xₚ,r,b)
 
 # ╔═╡ 9c395345-b5c3-439c-a663-e815ecb287f6
 md"
@@ -183,7 +250,15 @@ md"
 Coherent diffraction cross section
 
 $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{c}}{\mathrm{d}t}=\dfrac{1}{16\pi}\left|\langle\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})\rangle\right|^2$$
+
+---
 "
+
+# ╔═╡ 26454bd8-f492-41a8-8ca1-820a0cc8fb5d
+md"Extract 2D FFT (contains the integral over $\vec{b}$), perform the integral over $z$, then the integral over $\vec{r}$"
+
+# ╔═╡ ef7db9b6-2a64-4d55-a0c0-21f29b9546da
+
 
 # ╔═╡ 223f2010-a5fb-4bdd-84b9-b2483a40a400
 md"
@@ -198,10 +273,13 @@ $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{inc}}{\mathrm{d}t}=\
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
+FFTW = "~1.8.1"
 SpecialFunctions = "~2.5.0"
 Symbolics = "~6.29.2"
 """
@@ -212,7 +290,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "84a98b83b0d5382de5d4bbe0b5ba2ba79c153330"
+project_hash = "3031ce42bd24ffbcc2af6dec5ce023d393028399"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -228,6 +306,17 @@ version = "1.14.0"
     ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
     ConstructionBase = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
     EnzymeCore = "f151be2c-9106-41f4-ab19-57ee4f262869"
+
+[[deps.AbstractFFTs]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "d92ad398961a3ed262d8bf04a1a2b8340f915fef"
+uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
+version = "1.5.0"
+weakdeps = ["ChainRulesCore", "Test"]
+
+    [deps.AbstractFFTs.extensions]
+    AbstractFFTsChainRulesCoreExt = "ChainRulesCore"
+    AbstractFFTsTestExt = "Test"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -274,6 +363,10 @@ deps = ["PtrArrays", "Random"]
 git-tree-sha1 = "9876e1e164b144ca45e9e3198d0b689cadfed9ff"
 uuid = "66dad0bd-aa9a-41b7-9441-69ab47430ed8"
 version = "1.1.3"
+
+[[deps.ArgTools]]
+uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
+version = "1.1.2"
 
 [[deps.ArrayInterface]]
 deps = ["Adapt", "LinearAlgebra"]
@@ -451,6 +544,11 @@ version = "0.7.15"
     [deps.DomainSets.weakdeps]
     Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 
+[[deps.Downloads]]
+deps = ["ArgTools", "FileWatching", "LibCURL", "NetworkOptions"]
+uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+version = "1.6.0"
+
 [[deps.DynamicPolynomials]]
 deps = ["Future", "LinearAlgebra", "MultivariatePolynomials", "MutableArithmetics", "Reexport", "Test"]
 git-tree-sha1 = "9a3ae38b460449cc9e7dd0cfb059c76028724627"
@@ -471,6 +569,22 @@ version = "0.1.10"
 git-tree-sha1 = "c13f0b150373771b0fdc1713c97860f8df12e6c2"
 uuid = "55351af7-c7e9-48d6-89ff-24e801d99491"
 version = "0.10.14"
+
+[[deps.FFTW]]
+deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
+git-tree-sha1 = "7de7c78d681078f027389e067864a8d53bd7c3c9"
+uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+version = "1.8.1"
+
+[[deps.FFTW_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "4d81ed14783ec49ce9f2e168208a12ce1815aa25"
+uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
+version = "3.3.10+3"
+
+[[deps.FileWatching]]
+uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
+version = "1.11.0"
 
 [[deps.FillArrays]]
 deps = ["LinearAlgebra"]
@@ -521,6 +635,12 @@ version = "0.3.28"
 git-tree-sha1 = "b8ffb903da9f7b8cf695a8bead8e01814aa24b30"
 uuid = "18e54dd8-cb9d-406c-a71d-865a43cbb235"
 version = "0.1.2"
+
+[[deps.IntelOpenMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl"]
+git-tree-sha1 = "0f14a5456bdc6b9731a5682f439a672750a09e48"
+uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
+version = "2025.0.4+0"
 
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
@@ -591,6 +711,21 @@ version = "0.16.6"
     SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
     SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
 
+[[deps.LazyArtifacts]]
+deps = ["Artifacts", "Pkg"]
+uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+version = "1.11.0"
+
+[[deps.LibCURL]]
+deps = ["LibCURL_jll", "MozillaCACerts_jll"]
+uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
+version = "0.6.4"
+
+[[deps.LibCURL_jll]]
+deps = ["Artifacts", "LibSSH2_jll", "Libdl", "MbedTLS_jll", "Zlib_jll", "nghttp2_jll"]
+uuid = "deac9b47-8bc7-5906-a0fe-35ac56dc84c0"
+version = "8.6.0+0"
+
 [[deps.LibGit2]]
 deps = ["Base64", "LibGit2_jll", "NetworkOptions", "Printf", "SHA"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -635,6 +770,12 @@ version = "0.3.29"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 version = "1.11.0"
 
+[[deps.MKL_jll]]
+deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "oneTBB_jll"]
+git-tree-sha1 = "5de60bc6cb3899cd318d80d627560fae2e2d99ae"
+uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
+version = "2025.0.1+1"
+
 [[deps.MacroTools]]
 git-tree-sha1 = "72aebe0b5051e5143a079a4685a46da330a40472"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
@@ -661,6 +802,10 @@ deps = ["ExproniconLite", "Jieko"]
 git-tree-sha1 = "453de0fc2be3d11b9b93ca4d0fddd91196dcf1ed"
 uuid = "2e0e35c7-a2e4-4343-998d-7ef72827ed2d"
 version = "0.3.5"
+
+[[deps.MozillaCACerts_jll]]
+uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
+version = "2023.12.12"
 
 [[deps.MultivariatePolynomials]]
 deps = ["ChainRulesCore", "DataStructures", "LinearAlgebra", "MutableArithmetics"]
@@ -719,6 +864,17 @@ deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
 git-tree-sha1 = "966b85253e959ea89c53a9abebbf2e964fbf593b"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.11.32"
+
+[[deps.Pkg]]
+deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
+uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+version = "1.11.0"
+
+    [deps.Pkg.extensions]
+    REPLExt = "REPL"
+
+    [deps.Pkg.weakdeps]
+    REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1034,6 +1190,11 @@ git-tree-sha1 = "598cd7c1f68d1e205689b1c2fe65a9f85846f297"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 version = "1.12.0"
 
+[[deps.Tar]]
+deps = ["ArgTools", "SHA"]
+uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
+version = "1.10.0"
+
 [[deps.TaskLocalValues]]
 git-tree-sha1 = "d155450e6dff2a8bc2fcb81dcb194bd98b0aeb46"
 uuid = "ed4db957-447d-4319-bfb6-7fa9ae7ecf34"
@@ -1081,21 +1242,45 @@ git-tree-sha1 = "98528c2610a5479f091d470967a25becfd83edd0"
 uuid = "897b6980-f191-5a31-bcb0-bf3c4585e0c1"
 version = "0.1.0"
 
+[[deps.Zlib_jll]]
+deps = ["Libdl"]
+uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
+version = "1.2.13+1"
+
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 version = "5.11.0+0"
+
+[[deps.nghttp2_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
+version = "1.59.0+0"
+
+[[deps.oneTBB_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "d5a767a3bb77135a99e433afe0eb14cd7f6914c3"
+uuid = "1317d2d5-d96f-522e-a858-c73665f53c3e"
+version = "2022.0.0+0"
+
+[[deps.p7zip_jll]]
+deps = ["Artifacts", "Libdl"]
+uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
+version = "17.4.0+2"
 """
 
 # ╔═╡ Cell order:
 # ╟─9af71ee8-0317-11f0-102f-69a679def0dd
+# ╟─ec25d46c-ee6e-4b99-9a9c-3d36256223c0
+# ╠═89e17f34-ef6b-4537-b634-6f66f829489c
 # ╟─47bd04c7-7db4-4de3-940f-3dfb7af1dd51
 # ╟─893ba12a-c926-4cdc-912c-5c3a0f219dc2
 # ╟─06a91492-5dc7-4fb5-814c-bfdd78beecc5
-# ╟─71f9d53f-9ae7-4043-bf0d-218a16b29da9
-# ╠═797c2f63-d6c7-4287-842f-df32f37ba0de
 # ╟─60264611-33c0-43ce-8e28-6687163cd669
 # ╠═4cbad278-7963-47d8-8998-3e5d8a81637c
+# ╠═03f627f3-f72e-4f67-bc0c-822e491fd81d
+# ╠═96737eda-4f4b-427f-9644-a9b9540b360d
+# ╠═b0820c13-089b-485b-948f-103b20773c90
 # ╟─d4f451d1-4a4b-4582-b4b9-9728bdebc25b
 # ╠═0b4680a1-b139-4720-87d4-62025e30feba
 # ╠═a61eb470-b3f8-4739-8533-5476f8ff93bd
@@ -1110,9 +1295,19 @@ version = "5.11.0+0"
 # ╠═ad97b327-3cf1-4761-90cb-00a459be634a
 # ╟─9aec76c5-cfeb-4522-8fae-58842413be9e
 # ╠═8c104443-fbb5-4392-a714-e48ddce0768f
+# ╠═15e890db-7c65-4dba-abf9-298c42a7660e
+# ╠═43a5f98e-3d18-4e9a-9382-2b397bdcf3d5
+# ╠═34c2fd53-67ec-4fdc-b0fd-3490fceb3b0d
+# ╠═281fcffe-f9b2-4bad-8725-f6761544e112
+# ╠═23253186-7857-4051-a9e3-538cc6527419
+# ╠═cfe26cfa-cfa3-4a9a-aaf0-2a8ea0413670
 # ╠═54eb21fd-2a24-4b0d-b05b-78c19bdc729a
 # ╠═837e8db4-effe-4131-bde3-972325a994ae
+# ╠═be723fcc-c84b-4757-aaaf-b07b5e418856
+# ╠═e0447f20-2597-4236-a5bd-8ca1b1053213
 # ╟─9c395345-b5c3-439c-a663-e815ecb287f6
+# ╟─26454bd8-f492-41a8-8ca1-820a0cc8fb5d
+# ╠═ef7db9b6-2a64-4d55-a0c0-21f29b9546da
 # ╟─223f2010-a5fb-4bdd-84b9-b2483a40a400
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
