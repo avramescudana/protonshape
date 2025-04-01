@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.4
+# v0.20.5
 
 using Markdown
 using InteractiveUtils
@@ -11,6 +11,8 @@ begin
 	using FFTW # Fast Fourier Transform, bindings to FFTW
 	using LinearAlgebra # Useful LA tools
 	using MCIntegration # MC algorithms for high-dimensional integrals
+	# using SymbolicNumericIntegration # Symbolic integration
+	# using SymPy # Symbolic integration
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -82,12 +84,18 @@ begin
 	W = 100 # [GeV]
 end
 
+# ╔═╡ a58aa4bc-1d68-45a6-a4e8-f3a67744da13
+@variables t
+
 # ╔═╡ 03f627f3-f72e-4f67-bc0c-822e491fd81d
 function xp(t)
 	nom = Mᵥ*Mᵥ + Q² - t
 	den = W*W + Q² - mₚ*mₚ
 	return nom/den
 end
+
+# ╔═╡ 96737eda-4f4b-427f-9644-a9b9540b360d
+xp(t)
 
 # ╔═╡ b0820c13-089b-485b-948f-103b20773c90
 xₚ = xp(0)
@@ -126,6 +134,12 @@ begin
 	∇ᵣϕₗ(r,z) = 1/r * expand_derivatives(∂ᵣ(ϕ(r,z,"L"))) + expand_derivatives(∂ᵣ(∂ᵣ(ϕ(r,z,"L"))))
 end
 
+# ╔═╡ 8ed039b4-07c8-4ee9-83ab-e7d134d4c703
+ϕ(r,z,"T")
+
+# ╔═╡ 7f4a0e76-7978-4e4d-b810-5145eae1dba1
+ϕ(r,z,"L")
+
 # ╔═╡ 69528f60-33c4-4c84-9e8d-c61c7cb4c599
 function ΨᵥΨ(Q²,r,z,λ)
 	factor = êf * e * Nc / π
@@ -162,13 +176,13 @@ where $Q_s^2(x)=(x_0/x)^{\lambda_{\mathrm{GBW}}}$.
 
 Let us introduce an impact parameter dependence 
 
-$$\dfrac{\mathrm{d}\sigma_{q\overline{q}}}{\mathrm{d}^2\boldsymbol{b}}=\sigma_0\left(1-\mathrm{e}^{-r^2 Q_s^2(x,b)/4}\right)$$
+$$\dfrac{\mathrm{d}\sigma_{q\overline{q}}}{\mathrm{d}^2\boldsymbol{b}}=\left(1-\mathrm{e}^{-\mathcal{N}r^2 Q_s^2(x,b)/4}\right)$$
 
-where $Q_s^2(x,b)=(x_0/x)^{\lambda_{\mathrm{GBW}}}T(b)$ with a Gaussianthickness function
+where $Q_s^2(x,b)=(x_0/x)^{\lambda_{\mathrm{GBW}}}T(b)$ with a Gaussian thickness function
 
 $$T(b)=\dfrac{1}{2\pi B_p}\mathrm{e}^{-\frac{b^2}{2B_p}}$$
 
-Here the parameter $B_p$ is free and chosen to fit $\mathrm{d}\sigma/\mathrm{d}t$.
+Here the parameter $B_p$ is the proton width. Here $\mathcal{N}$ is a normalization factor chosen to fit $\mathrm{d}\sigma/\mathrm{d}t$.
 
 ---
 "
@@ -186,16 +200,18 @@ begin
 	x₀ = 4 * 10^(-5)
 
 	Bₚ = 4 # [GeV^-2]
+
+	N = 2.0 # Normalization factor
 end
 
 # ╔═╡ 9aec76c5-cfeb-4522-8fae-58842413be9e
 md"##### Functions"
 
 # ╔═╡ 8c104443-fbb5-4392-a714-e48ddce0768f
-@variables t, b
+# @variables t, b
 
-# ╔═╡ 96737eda-4f4b-427f-9644-a9b9540b360d
-xp(t)
+# ╔═╡ 40f9d0fe-3684-4670-a255-841acf058047
+@variables b, Δ
 
 # ╔═╡ 15e890db-7c65-4dba-abf9-298c42a7660e
 # @variables xₚ
@@ -235,13 +251,13 @@ end
 σqq̅(xₚ,r)
 
 # ╔═╡ be723fcc-c84b-4757-aaaf-b07b5e418856
-function dσqq̅db(xₚ,r,b)
-	term_exp = 1 - exp(- r * r * Qₛ(xₚ) * T(b) / 4)
+function dσqq̅db(xₚ,r,b,N)
+	term_exp = 1 - exp(- N * r * r * Qₛ(xₚ) * T(b) / 4)
 	return σ₀ * term_exp
 end
 
 # ╔═╡ e0447f20-2597-4236-a5bd-8ca1b1053213
-dσqq̅db(xₚ,r,b)
+dσqq̅db(xₚ,r,b,N)
 
 # ╔═╡ 9c395345-b5c3-439c-a663-e815ecb287f6
 md"
@@ -256,25 +272,56 @@ $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{c}}{\mathrm{d}t}=\df
 "
 
 # ╔═╡ 26454bd8-f492-41a8-8ca1-820a0cc8fb5d
-md"Extract 2D FFT (contains the integral over $\vec{b}$), perform the integral over $z$, then the integral over $\vec{r}$"
+md"Assuming angle independence of the cross section and wavefunctions, the scattering amplitude simplifies to
+
+$$\begin{aligned}\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})=&2\mathrm{i}\int r\,\mathrm{d} r\int b \,\mathrm{d} b \int\mathrm{d}z\, (\Psi^*\Psi_V)_{T,L}(Q^2, r,z)\\ &\times \dfrac{\mathrm{d}\sigma^p_{\mathrm{dip}}}{\mathrm{d}^2 \boldsymbol{b}}(b, r, x_{\mathbb{P}})J_0(b\Delta)J_0((1-z)r\Delta)\end{aligned}$$
+where we used $\int_0^{2\pi}d\theta e^{-i a \cos\theta}=2\pi J_0(a)$, with $J_0$ the Bessel function of first kind."
 
 # ╔═╡ ef7db9b6-2a64-4d55-a0c0-21f29b9546da
-md"#### Numerical grids"
+md"#### Numerical integration"
 
 # ╔═╡ 5e7c84f6-56b9-46f1-a1c6-5b9414a26d3e
 begin
 	ħc = 0.197326 # [GeV*fm], convert GeV^-1 to fm
 	ħcinv = 5.068 # convert fm^-1 to GeV
-	
-	Nr, Nb, Nz = 100, 100, 50  # Number of points for r, b and z grids
-	
+		
 	rmin, rmax = 0, 5 * ħcinv # rmax ≈ 1 fm, maximum dipole size < proton radius
 	bmin, bmax = 0, 50 * ħcinv # bmax ≈ 10 fm, maximum impact parameter
 	zmin, zmax = 0, 1 # z ∈ [0,1]
 
-	θrmin, θrmax = 0, 2π # polar angle in r grid
-	θzmin, θzmax = 0, 2π # polar angle in z grid
+	# θrmin, θrmax = 0, 2π # polar angle in r 
+	# θzmin, θzmax = 0, 2π # polar angle in z 
+
+	limits = [(Float64(rmin), Float64(rmax)), (Float64(bmin), Float64(bmax)), (Float64(zmin), Float64(zmax))] # integration limits
 end
+
+# ╔═╡ d6873fb1-51bb-44d9-8253-a677b681102d
+function A(r, b, z, Δ, λ)
+	t1 = im * 2 * r * b
+	t2 = ΨᵥΨ(Q²,r,z,λ)
+	t3 = dσqq̅db(xₚ,r,b,N)
+	t4 = besselj(0, b * Δ) * besselj(0, (1-z) * r * Δ)
+	return t1 * t2 * t3 * t4
+end
+
+# ╔═╡ c0bf8302-558a-4b8d-b45a-b38ac824b752
+A(r, b, z, Δ, "T")
+
+# ╔═╡ bb9629a3-f94d-4d20-b557-33c8fbdae8e9
+A(r, b, z, Δ, "L")
+
+# ╔═╡ 7c8c72b6-d2ce-439a-8a6b-03203c647248
+function intA(v)
+    r, b, z = v  
+	Δ = 0.2
+    return A(r, b, z, Δ, "T")
+end
+
+# ╔═╡ 604dceec-c4d9-474d-ba73-8d35937c23d2
+md"Perform MC integration"
+
+# ╔═╡ 1e459db3-dd17-4ee8-832d-b4987bc5aeb7
+result, error = integrate(intA, limits, N=10^6) 
 
 # ╔═╡ 223f2010-a5fb-4bdd-84b9-b2483a40a400
 md"
@@ -299,7 +346,7 @@ Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 FFTW = "~1.8.1"
 MCIntegration = "~0.4.2"
 SpecialFunctions = "~2.5.0"
-Symbolics = "~6.29.2"
+Symbolics = "~6.34.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -308,7 +355,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "b9a2bf37ffb4cc34d34c23de9ae6a37e691213ef"
+project_hash = "07651c9d7f122a0eed689e7ec8be5c4d3008f33e"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -509,9 +556,9 @@ version = "1.16.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "1d0a14036acb104d9e89698bd408f63ab58cdc82"
+git-tree-sha1 = "4e1fe97fdaed23e9dc21d4d664bea76b65fc50a0"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.20"
+version = "0.18.22"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -551,10 +598,9 @@ version = "0.25.118"
     Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[deps.DocStringExtensions]]
-deps = ["LibGit2"]
-git-tree-sha1 = "2fb1e02f2b635d0845df5d7c167fec4dd739b00d"
+git-tree-sha1 = "e7b7e6f178525d17c720ab9c081e4ef04429f860"
 uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-version = "0.9.3"
+version = "0.9.4"
 
 [[deps.DomainSets]]
 deps = ["CompositeTypes", "IntervalSets", "LinearAlgebra", "Random", "StaticArrays"]
@@ -580,9 +626,9 @@ uuid = "7c1d4256-1411-5781-91ec-d7bc3513ac07"
 version = "0.6.1"
 
 [[deps.EnumX]]
-git-tree-sha1 = "bdb1942cd4c45e3c678fd11569d5cccd80976237"
+git-tree-sha1 = "bddad79635af6aec424f53ed8aad5d7555dc6f00"
 uuid = "4e289a0a-7415-4d19-859d-a7e5c4648b56"
-version = "1.0.4"
+version = "1.0.5"
 
 [[deps.ExprTools]]
 git-tree-sha1 = "27415f162e6028e81c72b82ef756bf321213b6ec"
@@ -651,9 +697,9 @@ version = "0.2.0"
 
 [[deps.Graphs]]
 deps = ["ArnoldiMethod", "Compat", "DataStructures", "Distributed", "Inflate", "LinearAlgebra", "Random", "SharedArrays", "SimpleTraits", "SparseArrays", "Statistics"]
-git-tree-sha1 = "1dc470db8b1131cfc7fb4c115de89fe391b9e780"
+git-tree-sha1 = "3169fd3440a02f35e549728b0890904cfd4ae58a"
 uuid = "86223c79-3864-5bf0-83f7-82e725a168b6"
-version = "1.12.0"
+version = "1.12.1"
 
 [[deps.Hwloc_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -919,9 +965,9 @@ uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
 
 [[deps.OffsetArrays]]
-git-tree-sha1 = "5e1897147d1ff8d98883cda2be2187dcf57d8f0c"
+git-tree-sha1 = "a414039192a155fb38c4599a60110f0018c6ec82"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "1.15.0"
+version = "1.16.0"
 weakdeps = ["Adapt"]
 
     [deps.OffsetArrays.extensions]
@@ -956,9 +1002,9 @@ version = "1.8.0"
 
 [[deps.PDMats]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse"]
-git-tree-sha1 = "966b85253e959ea89c53a9abebbf2e964fbf593b"
+git-tree-sha1 = "48566789a6d5f6492688279e22445002d171cf76"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
-version = "0.11.32"
+version = "0.11.33"
 
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "Random", "SHA", "TOML", "Tar", "UUIDs", "p7zip_jll"]
@@ -991,9 +1037,9 @@ version = "1.4.3"
 
 [[deps.Primes]]
 deps = ["IntegerMathUtils"]
-git-tree-sha1 = "cb420f77dc474d23ee47ca8d14c90810cafe69e7"
+git-tree-sha1 = "25cdd1d20cd005b52fc12cb6be3f75faaf59bb9b"
 uuid = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
-version = "0.5.6"
+version = "0.5.7"
 
 [[deps.Printf]]
 deps = ["Unicode"]
@@ -1036,9 +1082,9 @@ version = "1.3.4"
 
 [[deps.RecursiveArrayTools]]
 deps = ["Adapt", "ArrayInterface", "DocStringExtensions", "GPUArraysCore", "IteratorInterfaceExtensions", "LinearAlgebra", "RecipesBase", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface", "Tables"]
-git-tree-sha1 = "35ac79a85c8086892258581d8b6df9cd8db5c91a"
+git-tree-sha1 = "112c876cee36a5784df19098b55db2b238afc36a"
 uuid = "731186ca-8d62-57ce-b412-fbd966d074cd"
-version = "3.31.1"
+version = "3.31.2"
 
     [deps.RecursiveArrayTools.extensions]
     RecursiveArrayToolsFastBroadcastExt = "FastBroadcast"
@@ -1097,9 +1143,9 @@ version = "0.7.0"
 
 [[deps.SciMLBase]]
 deps = ["ADTypes", "Accessors", "ArrayInterface", "CommonSolve", "ConstructionBase", "Distributed", "DocStringExtensions", "EnumX", "FunctionWrappersWrappers", "IteratorInterfaceExtensions", "LinearAlgebra", "Logging", "Markdown", "Moshi", "PrecompileTools", "Preferences", "Printf", "RecipesBase", "RecursiveArrayTools", "Reexport", "RuntimeGeneratedFunctions", "SciMLOperators", "SciMLStructures", "StaticArraysCore", "Statistics", "SymbolicIndexingInterface"]
-git-tree-sha1 = "c779c485f384cc824dac44ab1ef1440209027016"
+git-tree-sha1 = "aeee7e9a9ba69d893f726e3a7ea27daef756c62e"
 uuid = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-version = "2.76.0"
+version = "2.81.0"
 
     [deps.SciMLBase.extensions]
     SciMLBaseChainRulesCoreExt = "ChainRulesCore"
@@ -1124,9 +1170,9 @@ version = "2.76.0"
 
 [[deps.SciMLOperators]]
 deps = ["Accessors", "ArrayInterface", "DocStringExtensions", "LinearAlgebra", "MacroTools"]
-git-tree-sha1 = "6149620767866d4b0f0f7028639b6e661b6a1e44"
+git-tree-sha1 = "1c4b7f6c3e14e6de0af66e66b86d525cae10ecb4"
 uuid = "c0aeaf25-5076-4817-a8d5-81caf7dfa961"
-version = "0.3.12"
+version = "0.3.13"
 weakdeps = ["SparseArrays", "StaticArraysCore"]
 
     [deps.SciMLOperators.extensions]
@@ -1257,9 +1303,9 @@ version = "0.2.2"
 
 [[deps.SymbolicUtils]]
 deps = ["AbstractTrees", "ArrayInterface", "Bijections", "ChainRulesCore", "Combinatorics", "ConstructionBase", "DataStructures", "DocStringExtensions", "DynamicPolynomials", "ExproniconLite", "LinearAlgebra", "MultivariatePolynomials", "NaNMath", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "SymbolicIndexingInterface", "TaskLocalValues", "TermInterface", "TimerOutputs", "Unityper", "WeakValueDicts"]
-git-tree-sha1 = "e2ddc57092cced7b05cb7bf848ab81181462ec5c"
+git-tree-sha1 = "1010477b7dc17d6d4d8d3b8f063292415e77a35f"
 uuid = "d1185830-fcd6-423d-90d6-eec64667417b"
-version = "3.19.0"
+version = "3.24.1"
 
     [deps.SymbolicUtils.extensions]
     SymbolicUtilsLabelledArraysExt = "LabelledArrays"
@@ -1271,9 +1317,9 @@ version = "3.19.0"
 
 [[deps.Symbolics]]
 deps = ["ADTypes", "ArrayInterface", "Bijections", "CommonWorldInvalidations", "ConstructionBase", "DataStructures", "DiffRules", "Distributions", "DocStringExtensions", "DomainSets", "DynamicPolynomials", "LaTeXStrings", "Latexify", "Libdl", "LinearAlgebra", "LogExpFunctions", "MacroTools", "Markdown", "NaNMath", "OffsetArrays", "PrecompileTools", "Primes", "RecipesBase", "Reexport", "RuntimeGeneratedFunctions", "SciMLBase", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArraysCore", "SymbolicIndexingInterface", "SymbolicLimits", "SymbolicUtils", "TermInterface"]
-git-tree-sha1 = "326982e1f8a8214ff83cc427484acc858f975c74"
+git-tree-sha1 = "8fc92f6f9d89725f61bfdb55ece10671e73e3442"
 uuid = "0c5d862f-8b57-4792-8d23-62f2024744c7"
-version = "6.29.2"
+version = "6.34.0"
 
     [deps.Symbolics.extensions]
     SymbolicsForwardDiffExt = "ForwardDiff"
@@ -1396,6 +1442,7 @@ version = "17.4.0+2"
 # ╟─06a91492-5dc7-4fb5-814c-bfdd78beecc5
 # ╟─60264611-33c0-43ce-8e28-6687163cd669
 # ╠═4cbad278-7963-47d8-8998-3e5d8a81637c
+# ╠═a58aa4bc-1d68-45a6-a4e8-f3a67744da13
 # ╠═03f627f3-f72e-4f67-bc0c-822e491fd81d
 # ╠═96737eda-4f4b-427f-9644-a9b9540b360d
 # ╠═b0820c13-089b-485b-948f-103b20773c90
@@ -1404,6 +1451,8 @@ version = "17.4.0+2"
 # ╠═a61eb470-b3f8-4739-8533-5476f8ff93bd
 # ╠═65f79988-11f5-4454-bac3-8cc680205019
 # ╠═6b92005d-0098-42a0-9c7b-1b9fb36b97c5
+# ╠═8ed039b4-07c8-4ee9-83ab-e7d134d4c703
+# ╠═7f4a0e76-7978-4e4d-b810-5145eae1dba1
 # ╠═69528f60-33c4-4c84-9e8d-c61c7cb4c599
 # ╟─927bce9d-b61e-4886-9775-404bf37e7c48
 # ╠═17bab355-00e5-4288-8955-2c5f5f66e77b
@@ -1413,6 +1462,7 @@ version = "17.4.0+2"
 # ╠═ad97b327-3cf1-4761-90cb-00a459be634a
 # ╟─9aec76c5-cfeb-4522-8fae-58842413be9e
 # ╠═8c104443-fbb5-4392-a714-e48ddce0768f
+# ╠═40f9d0fe-3684-4670-a255-841acf058047
 # ╠═15e890db-7c65-4dba-abf9-298c42a7660e
 # ╠═43a5f98e-3d18-4e9a-9382-2b397bdcf3d5
 # ╠═34c2fd53-67ec-4fdc-b0fd-3490fceb3b0d
@@ -1427,6 +1477,12 @@ version = "17.4.0+2"
 # ╟─26454bd8-f492-41a8-8ca1-820a0cc8fb5d
 # ╟─ef7db9b6-2a64-4d55-a0c0-21f29b9546da
 # ╠═5e7c84f6-56b9-46f1-a1c6-5b9414a26d3e
+# ╠═d6873fb1-51bb-44d9-8253-a677b681102d
+# ╠═c0bf8302-558a-4b8d-b45a-b38ac824b752
+# ╠═bb9629a3-f94d-4d20-b557-33c8fbdae8e9
+# ╠═7c8c72b6-d2ce-439a-8a6b-03203c647248
+# ╠═604dceec-c4d9-474d-ba73-8d35937c23d2
+# ╠═1e459db3-dd17-4ee8-832d-b4987bc5aeb7
 # ╟─223f2010-a5fb-4bdd-84b9-b2483a40a400
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
