@@ -15,6 +15,7 @@ begin
 	# using SymPy # Symbolic integration
 	using Plots 
 	using Nemo # Algebra package, requires for symbolic_solve
+	using Statistics # Mean value
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -241,7 +242,7 @@ end
 # ╔═╡ 23253186-7857-4051-a9e3-538cc6527419
 function T(b)
 	norm = 1 / (2π * Bₚ)
-	term_exp = exp(- b * b / (2 * Bₚ * Bₚ))
+	term_exp = exp(- b * b / (2 * Bₚ))
 	return norm * term_exp
 end
 
@@ -349,11 +350,13 @@ begin
 	# todo: iterate over Δ values, currently fix Δ
 	# Δ_test = 0.3
 
-	Δ_range = range(0, 1.5, 10)
+	Δ_range = range(0, stop=1.5, length=10)
+	
 	collect_int = []
 	
 	for Δᵢ in Δ_range
-		res = MCIntegration.integrate((X, c)->A(X[1]/rmax, X[2]/bmax, X[3], Δᵢ, N₀, "T"); var = X, dof = 3, solver=:vegas) 
+		
+		res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas) 
 		mean, std = res[1][1], res[1][2]
 
 		push!(collect_int, mean)
@@ -399,6 +402,7 @@ MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
 Nemo = "2edaba10-b0f1-5616-af89-8c11ac63239a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
@@ -417,7 +421,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "3d3dc069cdef6c96b8771b9f543ad04fc89b7fb2"
+project_hash = "0a68b7a429a27307bd5a646a439cac948142b5cf"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
