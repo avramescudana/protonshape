@@ -15,7 +15,7 @@ begin
 	# using SymPy # Symbolic integration
 	using Plots 
 	using Nemo # Algebra package, requires for symbolic_solve
-	using Statistics # Mean value
+	using DelimitedFiles # Read data from text files
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -277,16 +277,16 @@ dσqq̅db_intb(xₚ,1,2,N)
 σqq̅(xₚ,1)
 
 # ╔═╡ b99cae42-6f73-4525-8f07-978d4539edf8
-r_sym = 5
+r_sym = 0.1
 
 # ╔═╡ 2af8c9b4-1dc3-4397-b4c2-38e2be5df278
-sym_res = Symbolics.symbolic_solve(dσqq̅db_intb(xₚ,r_sym,2,N) - σqq̅(xₚ,r_sym), N)[1]
+sym_res = Symbolics.symbolic_solve(π*dσqq̅db_intb(xₚ,r_sym,1,N) - σqq̅(xₚ,r_sym), N)[1]
 
 # ╔═╡ fb91d384-10cd-4855-b675-ef00c34e9b94
 Symbolics.symbolic_to_float(sym_res)
 
 # ╔═╡ 1798d676-d7a9-4138-9d8f-f1530db754e0
-N₀ = 3 # approximate initial value for the normalization constant
+N₀ = 100 # approximate initial value for the normalization constant
 
 # ╔═╡ 9c395345-b5c3-439c-a663-e815ecb287f6
 md"
@@ -350,7 +350,7 @@ begin
 	# todo: iterate over Δ values, currently fix Δ
 	# Δ_test = 0.3
 
-	Δ_range = range(0, stop=1.5, length=10)
+	Δ_range = range(0, stop=1.0, length=10)
 	
 	collect_int = []
 	
@@ -370,19 +370,60 @@ collect_int
 t_range = Δ_range .* Δ_range 
 
 # ╔═╡ df0a7b24-0b81-4a05-9f42-b304a74bb28b
-dσcoh = abs.(collect_int .* collect_int) ./ (16π)
+dσcoh = abs.(collect_int .* collect_int) ./ (16π) ./ 10^6 # [nb/GeV²]
 
 # ╔═╡ a87202ea-84fd-4977-928e-89d4bd70d5f1
 md"### Plot coherent cross section"
 
 # ╔═╡ cf65ab08-9fc8-4b40-8480-d3a520c3c258
 begin
-	# plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ylimits=(10^(-18), 10^(-17)))
 	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10)
 end
 
-# ╔═╡ 604dceec-c4d9-474d-ba73-8d35937c23d2
-md"Perform MC integration"
+# ╔═╡ 7d367df2-4f2a-4386-8378-fc1cbfa7adf7
+md"Read data from file"
+
+# ╔═╡ db2d7976-7059-4ca6-a2ec-026ce47b30a1
+begin
+	file_path = "jpsi_coh_hera.txt"
+	lines = readlines(file_path)
+	
+	tmin_hera, tmax_hera, tcent_hera, dσcoh_hera, Δtot_hera = Float64[], Float64[], Float64[], Float64[], Float64[]
+	
+	for line in lines
+		
+	    if startswith(line, "#") || isempty(line)
+	        continue
+	    end
+	
+	    columns = split(line)
+	
+	    push!(tmin_hera, parse(Float64, columns[1]))
+	    push!(tmax_hera, parse(Float64, columns[3]))
+
+	    push!(tcent_hera, parse(Float64, columns[4]))
+	    push!(dσcoh_hera, parse(Float64, columns[5]))
+		push!(Δtot_hera, parse(Float64, columns[6]))
+	end
+end
+
+# ╔═╡ 36e4a26a-530b-4d33-8898-8366d0aac22f
+dσcoh_hera
+
+# ╔═╡ f021e371-1821-4c86-9aff-af2a7a7f0976
+begin
+	# bin_edges = vcat(tmin_hera, tmax_hera[end]) 
+	# bin_heights = dσcoh_hera
+	
+	# plot(bin_edges, [0; bin_heights; 0], seriestype=:step, label="dsigma", lw=2, color=:blue)
+
+	plot(t_range, dσcoh, yscale=:log10, label="Dipole")
+	
+	scatter!(tcent_hera, dσcoh_hera, yerr=Δtot_hera, label="Coherent H1", color=:blue, marker=:utriangle)
+	
+	xlabel!("|t| [GeV²]")
+	ylabel!("dσ/d|t| [nb/GeV²]")
+end
 
 # ╔═╡ 223f2010-a5fb-4bdd-84b9-b2483a40a400
 md"
@@ -397,12 +438,12 @@ $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{inc}}{\mathrm{d}t}=\
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
 Nemo = "2edaba10-b0f1-5616-af89-8c11ac63239a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
@@ -421,7 +462,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "0a68b7a429a27307bd5a646a439cac948142b5cf"
+project_hash = "47e615c8edcac451d5bfcdee0cee1a8bb390cade"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -3301,7 +3342,10 @@ version = "1.4.1+2"
 # ╠═df0a7b24-0b81-4a05-9f42-b304a74bb28b
 # ╟─a87202ea-84fd-4977-928e-89d4bd70d5f1
 # ╠═cf65ab08-9fc8-4b40-8480-d3a520c3c258
-# ╟─604dceec-c4d9-474d-ba73-8d35937c23d2
+# ╟─7d367df2-4f2a-4386-8378-fc1cbfa7adf7
+# ╠═db2d7976-7059-4ca6-a2ec-026ce47b30a1
+# ╠═36e4a26a-530b-4d33-8898-8366d0aac22f
+# ╠═f021e371-1821-4c86-9aff-af2a7a7f0976
 # ╟─223f2010-a5fb-4bdd-84b9-b2483a40a400
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
