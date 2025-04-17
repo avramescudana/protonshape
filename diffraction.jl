@@ -16,6 +16,9 @@ begin
 	using Plots 
 	using Nemo # Algebra package, requires for symbolic_solve
 	using DelimitedFiles # Read data from text files
+	using NLsolve
+	using QuadGK
+	using LaTeXStrings
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -181,7 +184,7 @@ where $Q_s^2(x)=(x_0/x)^{\lambda_{\mathrm{GBW}}}$.
 
 Let us introduce an impact parameter dependence 
 
-$$\dfrac{\mathrm{d}\sigma_{q\overline{q}}}{\mathrm{d}^2\boldsymbol{b}}=\sigma_0\left(1-\mathrm{e}^{-\mathcal{N}r^2 Q_s^2(x,b)/4}\right)$$
+$$\dfrac{\mathrm{d}\sigma_{q\overline{q}}}{\mathrm{d}^2\boldsymbol{b}}=\sigma_0\left(1-\mathrm{e}^{-\mathcal{N}r^2 Q_s^2(x,b)}\right)$$
 
 where $Q_s^2(x,b)=(x_0/x)^{\lambda_{\mathrm{GBW}}}T(b)$ with a Gaussian thickness function
 
@@ -267,26 +270,48 @@ end
 # ╔═╡ e0447f20-2597-4236-a5bd-8ca1b1053213
 dσqq̅db(xₚ,r,b,N)
 
-# ╔═╡ 442ebfcd-e93f-4aa0-804b-fae82ac479bb
-dσqq̅db_intb(xₚ,r,b,N) = SymbolicNumericIntegration.integrate(dσqq̅db(xₚ,r,b,N)*b, b; symbolic = true, detailed = false)
+# ╔═╡ d64d7110-9fdc-4af7-95df-e9cdcab556fe
+begin
+	# Symbolic integration, solve to get N
+	indef = SymbolicNumericIntegration.integrate(dσqq̅db(xₚ, r, b, N) * b, b; symbolic = true, detailed = false)
 
-# ╔═╡ 2d0c3ad5-1a75-43e4-aaeb-e413063c4fa3
-dσqq̅db_intb(xₚ,1,2,N)
-
-# ╔═╡ 8c8ac7fb-5ebd-4573-b091-3c0a4a3244f4
-σqq̅(xₚ,1)
-
-# ╔═╡ b99cae42-6f73-4525-8f07-978d4539edf8
-r_sym = 0.1
-
-# ╔═╡ 2af8c9b4-1dc3-4397-b4c2-38e2be5df278
-sym_res = Symbolics.symbolic_solve(π*dσqq̅db_intb(xₚ,r_sym,1,N) - σqq̅(xₚ,r_sym), N)[1]
-
-# ╔═╡ fb91d384-10cd-4855-b675-ef00c34e9b94
-Symbolics.symbolic_to_float(sym_res)
+	dσqq̅db_intb = substitute(indef, b => 20.0) - substitute(indef, b => 0)
+	
+	function f(Nval, r_sym, xₚ, b_max)
+		lhs_r = substitute(2π*dσqq̅db_intb, r => r_sym)
+		lhs = substitute(lhs_r, N => Nval)
+		rhs = σqq̅(xₚ, r_sym)
+		
+		lhs_value = Symbolics.eval(lhs)
+		rhs_value = float(rhs)
+	
+		diff = lhs_value - rhs_value
+		return diff
+	end
+	
+	r_sym = 1.0
+	N_guess = 1.0 
+	
+	res = nlsolve(x -> f(x[1], r_sym, xₚ, 20.0), [N_guess])
+	
+	N_solution = res.zero[1]
+end
 
 # ╔═╡ 1798d676-d7a9-4138-9d8f-f1530db754e0
-N₀ = 100 # approximate initial value for the normalization constant
+N₀ = 50 # approximate initial value for the normalization constant
+
+# ╔═╡ 3a86127b-6f42-49e9-93fe-d601d71c3627
+begin
+	# Numeric integration, guess N
+	N_val = 0.96
+	integrand(b) = dσqq̅db(xₚ, r_sym, b, N_val) * b
+    result, _ = quadgk(integrand, 0.0, 10.0)
+	lhs_int = result * 2π  
+
+	rhs_val = σqq̅(xₚ, r_sym)
+
+	lhs_int - rhs_val
+end
 
 # ╔═╡ 9c395345-b5c3-439c-a663-e815ecb287f6
 md"
@@ -303,7 +328,7 @@ $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{c}}{\mathrm{d}t}=\df
 # ╔═╡ 26454bd8-f492-41a8-8ca1-820a0cc8fb5d
 md"Assuming angle independence of the cross section and wavefunctions, the scattering amplitude simplifies to
 
-$$\begin{aligned}\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})=&2\mathrm{i}\int\limits_{r_\mathrm{min}}^{r_\mathrm{max}} r\,\mathrm{d} r\int_{b_\mathrm{min}}^{b_\mathrm{max}} b \,\mathrm{d} b \int_0^1\mathrm{d}z\, (\Psi^*\Psi_V)_{T,L}(Q^2, r,z)\\ &\times \dfrac{\mathrm{d}\sigma^p_{\mathrm{dip}}}{\mathrm{d}^2 \boldsymbol{b}}(b, r, x_{\mathbb{P}})J_0(b\Delta)J_0((1-z)r\Delta)\end{aligned}$$
+$$\begin{aligned}\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})=&\mathrm{i}\pi\int\limits_{r_\mathrm{min}}^{r_\mathrm{max}} r\,\mathrm{d} r\int_{b_\mathrm{min}}^{b_\mathrm{max}} b \,\mathrm{d} b \int_0^1\mathrm{d}z\, (\Psi^*\Psi_V)_{T,L}(Q^2, r,z)\\ &\times \dfrac{\mathrm{d}\sigma^p_{\mathrm{dip}}}{\mathrm{d}^2 \boldsymbol{b}}(b, r, x_{\mathbb{P}})J_0(b\Delta)J_0((1-z)r\Delta)\end{aligned}$$
 where we used $\int_0^{2\pi}d\theta e^{-i a \cos\theta}=2\pi J_0(a)$, with $J_0$ the Bessel function of first kind."
 
 # ╔═╡ ef7db9b6-2a64-4d55-a0c0-21f29b9546da
@@ -317,20 +342,15 @@ begin
 	rmin, rmax = 0, 5 * ħcinv # rmax ≈ 1 fm, maximum dipole size < proton radius
 	bmin, bmax = 0, 50 * ħcinv # bmax ≈ 10 fm, maximum impact parameter
 	zmin, zmax = 0, 1 # z ∈ [0,1]
-
-	# θrmin, θrmax = 0, 2π # polar angle in r 
-	# θzmin, θzmax = 0, 2π # polar angle in z 
-
-	limits = [(Float64(rmin), Float64(rmax)), (Float64(bmin), Float64(bmax)), (Float64(zmin), Float64(zmax))] # integration limits
 end
 
 # ╔═╡ d6873fb1-51bb-44d9-8253-a677b681102d
 function A(r, b, z, Δ, N, λ)
 	# Note that A(λ="L") for Q²=0
 	
-	# t1 = im * 2 * r * b
+	# t1 = im * r * b
 	# t1 has an overall factor of i
-	t1 = 2 * r * b
+	t1 = r * b
 	t2 = ΨᵥΨ(Q²,r,z,λ)
 	t3 = dσqq̅db(xₚ,r,b,N)
 	t4 = besselj(0, b * Δ) * besselj(0, (1-z) * r * Δ)
@@ -352,7 +372,7 @@ begin
 
 	Δ_range = range(0, stop=1.0, length=10)
 	
-	collect_int = []
+	collect_int, collect_int_std = [], []
 	
 	for Δᵢ in Δ_range
 		
@@ -360,17 +380,18 @@ begin
 		mean, std = res[1][1], res[1][2]
 
 		push!(collect_int, mean)
+		# push!(collect_int_std, std)
 	end
 end
 
-# ╔═╡ 7532f784-962e-4a3b-8edd-dffa014ee3f3
-collect_int
-
 # ╔═╡ c4c0e3c4-0003-4aac-ba28-fd8c1726977d
-t_range = Δ_range .* Δ_range 
+begin
+	t_range = Δ_range .* Δ_range 
 
-# ╔═╡ df0a7b24-0b81-4a05-9f42-b304a74bb28b
-dσcoh = abs.(collect_int .* collect_int) ./ (16π) ./ 10^6 # [nb/GeV²]
+	units = (16/π) * 10^6 # [nb/GeV²]
+	dσcoh = abs.(collect_int .* collect_int) ./ units 
+	# dσcoh_std = 2 .* collect_int .* collect_int_std ./ units
+end
 
 # ╔═╡ a87202ea-84fd-4977-928e-89d4bd70d5f1
 md"### Plot coherent cross section"
@@ -412,17 +433,22 @@ dσcoh_hera
 
 # ╔═╡ f021e371-1821-4c86-9aff-af2a7a7f0976
 begin
+	default(fontfamily="Computer Modern", framestyle=:box, legendfontsize=11, labelfontsize=14, tickfontsize=12, size=(500,400), foreground_color_legend = nothing, background_color_legend=nothing)
 	# bin_edges = vcat(tmin_hera, tmax_hera[end]) 
 	# bin_heights = dσcoh_hera
 	
 	# plot(bin_edges, [0; bin_heights; 0], seriestype=:step, label="dsigma", lw=2, color=:blue)
 
-	plot(t_range, dσcoh, yscale=:log10, label="Dipole")
+	plot(t_range, dσcoh, yscale=:log10, yticks = :auto, minor_ticks = true, label="GBW", dpi=600)
 	
-	scatter!(tcent_hera, dσcoh_hera, yerr=Δtot_hera, label="Coherent H1", color=:blue, marker=:utriangle)
+	scatter!(tcent_hera, dσcoh_hera, yerr=Δtot_hera, label="Coherent H1", color=:blue, marker=:utriangle, markersize=5, legend_marker_scale = 0.1)
 	
-	xlabel!("|t| [GeV²]")
-	ylabel!("dσ/d|t| [nb/GeV²]")
+	xlabel!(L"|t|\;[\mathrm{GeV}^2]")
+	ylabel!(L"d\sigma/d|t|\;[\mathrm{nb}/\mathrm{GeV}^2]")
+
+	xlims!(0, 1.0)
+
+	# savefig("jpsi_coh_hera_gbw.png")
 end
 
 # ╔═╡ 223f2010-a5fb-4bdd-84b9-b2483a40a400
@@ -439,18 +465,24 @@ $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{inc}}{\mathrm{d}t}=\
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 Nemo = "2edaba10-b0f1-5616-af89-8c11ac63239a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
+LaTeXStrings = "~1.4.0"
 MCIntegration = "~0.4.2"
+NLsolve = "~4.5.1"
 Nemo = "~0.49.3"
 Plots = "~1.40.11"
+QuadGK = "~2.11.2"
 SpecialFunctions = "~2.5.0"
 SymbolicNumericIntegration = "~1.9.0"
 Symbolics = "~6.36.0"
@@ -462,7 +494,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "47e615c8edcac451d5bfcdee0cee1a8bb390cade"
+project_hash = "dc84a6a58c223d15d38fd4304f744fc52cb522f8"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -1054,6 +1086,17 @@ weakdeps = ["ChainRulesCore", "EnzymeCore"]
     [deps.DispatchDoctor.extensions]
     DispatchDoctorChainRulesCoreExt = "ChainRulesCore"
     DispatchDoctorEnzymeCoreExt = "EnzymeCore"
+
+[[deps.Distances]]
+deps = ["LinearAlgebra", "Statistics", "StatsAPI"]
+git-tree-sha1 = "c7e3a542b999843086e2f29dac96a618c105be1d"
+uuid = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+version = "0.10.12"
+weakdeps = ["ChainRulesCore", "SparseArrays"]
+
+    [deps.Distances.extensions]
+    DistancesChainRulesCoreExt = "ChainRulesCore"
+    DistancesSparseArraysExt = "SparseArrays"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -1970,6 +2013,12 @@ deps = ["ADTypes", "DifferentiationInterface", "Distributed", "FiniteDiff", "For
 git-tree-sha1 = "b14c7be6046e7d48e9063a0053f95ee0fc954176"
 uuid = "d41bc354-129a-5804-8e4c-c37616107c6c"
 version = "7.9.1"
+
+[[deps.NLsolve]]
+deps = ["Distances", "LineSearches", "LinearAlgebra", "NLSolversBase", "Printf", "Reexport"]
+git-tree-sha1 = "019f12e9a1a7880459d0173c182e6a99365d7ac1"
+uuid = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+version = "4.5.1"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Random", "ScopedValues", "Statistics"]
@@ -3322,13 +3371,9 @@ version = "1.4.1+2"
 # ╠═837e8db4-effe-4131-bde3-972325a994ae
 # ╠═be723fcc-c84b-4757-aaaf-b07b5e418856
 # ╠═e0447f20-2597-4236-a5bd-8ca1b1053213
-# ╠═442ebfcd-e93f-4aa0-804b-fae82ac479bb
-# ╠═2d0c3ad5-1a75-43e4-aaeb-e413063c4fa3
-# ╠═8c8ac7fb-5ebd-4573-b091-3c0a4a3244f4
-# ╠═b99cae42-6f73-4525-8f07-978d4539edf8
-# ╠═2af8c9b4-1dc3-4397-b4c2-38e2be5df278
-# ╠═fb91d384-10cd-4855-b675-ef00c34e9b94
+# ╠═d64d7110-9fdc-4af7-95df-e9cdcab556fe
 # ╠═1798d676-d7a9-4138-9d8f-f1530db754e0
+# ╠═3a86127b-6f42-49e9-93fe-d601d71c3627
 # ╟─9c395345-b5c3-439c-a663-e815ecb287f6
 # ╟─26454bd8-f492-41a8-8ca1-820a0cc8fb5d
 # ╟─ef7db9b6-2a64-4d55-a0c0-21f29b9546da
@@ -3337,9 +3382,7 @@ version = "1.4.1+2"
 # ╠═c0bf8302-558a-4b8d-b45a-b38ac824b752
 # ╠═bb9629a3-f94d-4d20-b557-33c8fbdae8e9
 # ╠═9a34be0d-a8bc-4b98-9135-59edded0301c
-# ╠═7532f784-962e-4a3b-8edd-dffa014ee3f3
 # ╠═c4c0e3c4-0003-4aac-ba28-fd8c1726977d
-# ╠═df0a7b24-0b81-4a05-9f42-b304a74bb28b
 # ╟─a87202ea-84fd-4977-928e-89d4bd70d5f1
 # ╠═cf65ab08-9fc8-4b40-8480-d3a520c3c258
 # ╟─7d367df2-4f2a-4386-8378-fc1cbfa7adf7
