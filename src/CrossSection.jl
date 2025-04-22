@@ -9,7 +9,7 @@ Packages
 using SpecialFunctions # Modified Bessel functions of second kind
 using Symbolics # Symbolic calculation, partial derivatives
 # using LinearAlgebra # Useful functions
-# using MCIntegration # MC algorithms for high-dimensional integrals
+using MCIntegration # MC algorithms for high-dimensional integrals
 # using SymbolicNumericIntegration # Symbolic integration
 # using Plots # Basic plotting
 # using Nemo # Algebra package, requires for symbolic_solve
@@ -62,6 +62,28 @@ export params_gbw
 ħc = 0.197326 # [GeV*fm], convert GeV^-1 to fm
 ħcinv = 5.068 # convert fm^-1 to GeV
 
+params_mc = (
+    rmin = 0.0,
+    rmax = 5.0 * ħcinv, # rmax ≈ 1 fm, maximum dipole size < proton radius
+    bmin = 0.0,
+    bmax = 50 * ħcinv, # bmax ≈ 10 fm, maximum impact parameter
+    zmin = 0.0,
+    zmax = 1.0,
+    θbmin = 0.0,
+    θbmax = 2π,
+    Δmin = 0.0,
+    Δmax = 1.0,
+    Δlen = 15,
+    neval = 500000, # number of evaluations for MC integration
+)
+
+export params_mc
+
+diff_mode = "coh" # "coherent" or "incoherent"
+dipole_mode = "GWB" # "GWB" or "CQ"
+
+export diff_mode, dipole_mode
+
 # Consistuent quark model parameters
 Bqc = 3 # [GeV^-2]
 Bq = 0.5 # [GeV^-2]
@@ -85,6 +107,7 @@ export ϕ, ΨᵥΨ
 include("gbwdipole.jl") 
 export Qₛ, T, gbwdipole
 
-# include("diffractive.jl")
+include("diffractive.jl")
+export Agbw, diffractive
 
 end
