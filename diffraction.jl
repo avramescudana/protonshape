@@ -20,6 +20,7 @@ begin
 	using QuadGK # Numerically solve integrals
 	using LaTeXStrings # LaTeX labels in Plots
 	using Distributions # Random numbers, Gaussian distributions
+	using Statistics # Variance, standard deviation
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -265,18 +266,18 @@ end
 σqq̅(xₚ,r)
 
 # ╔═╡ be723fcc-c84b-4757-aaaf-b07b5e418856
-function dσqq̅db(xₚ,r,b,N)
+function dσqq̅db(xₚ,r,b,T,N)
 	term_exp = 1 - exp(- N * r * r * Qₛ(xₚ) * Qₛ(xₚ) * T(b) / 4)
 	return σ₀ * term_exp
 end
 
 # ╔═╡ e0447f20-2597-4236-a5bd-8ca1b1053213
-dσqq̅db(xₚ,r,b,N)
+dσqq̅db(xₚ,r,b,T,N)
 
 # ╔═╡ d64d7110-9fdc-4af7-95df-e9cdcab556fe
 begin
 	# Symbolic integration, solve to get N
-	indef = SymbolicNumericIntegration.integrate(dσqq̅db(xₚ, r, b, N) * b, b; symbolic = true, detailed = false)
+	indef = SymbolicNumericIntegration.integrate(dσqq̅db(xₚ, r, b, T, N) * b, b; symbolic = true, detailed = false)
 
 	dσqq̅db_intb = substitute(indef, b => 20.0) - substitute(indef, b => 0)
 	
@@ -307,7 +308,7 @@ N₀ = 50 # approximate initial value for the normalization constant
 begin
 	# Numeric integration, guess N
 	N_val = 0.96
-	integrand(b) = dσqq̅db(xₚ, r_sym, b, N_val) * b
+	integrand(b) = dσqq̅db(xₚ, r_sym, b, T, N_val) * b
     result, _ = quadgk(integrand, 0.0, 10.0)
 	lhs_int = result * 2π  
 
@@ -348,30 +349,27 @@ begin
 end
 
 # ╔═╡ d6873fb1-51bb-44d9-8253-a677b681102d
-function A(r, b, z, Δ, N, λ)
+function Agbw(r, b, z, Δ, N, λ)
 	# Note that A(λ="L") for Q²=0
 	
 	# t1 = im * r * b
 	# t1 has an overall factor of i
 	t1 = r * b
 	t2 = ΨᵥΨ(Q²,r,z,λ)
-	t3 = dσqq̅db(xₚ,r,b,N)
+	t3 = dσqq̅db(xₚ,r,b,T,N)
 	t4 = besselj(0, b * Δ) * besselj(0, (1-z) * r * Δ)
 	return t1 * t2 * t3 * t4
 end
 
 # ╔═╡ c0bf8302-558a-4b8d-b45a-b38ac824b752
-A(r, b, z, Δ, N₀, "T")
+Agbw(r, b, z, Δ, N₀, "T")
 
 # ╔═╡ bb9629a3-f94d-4d20-b557-33c8fbdae8e9
-A(r, b, z, Δ, N₀, "L")
+Agbw(r, b, z, Δ, N₀, "L")
 
 # ╔═╡ 9a34be0d-a8bc-4b98-9135-59edded0301c
 begin
-	X = MCIntegration.Continuous(0,1)
-
-	# todo: iterate over Δ values, currently fix Δ
-	# Δ_test = 0.3
+	xgbw = MCIntegration.Continuous(0,1)
 
 	Δ_range = range(0, stop=1.0, length=10)
 	
@@ -379,8 +377,8 @@ begin
 	
 	for Δᵢ in Δ_range
 		
-		res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas, neval=10000) 
-		# res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas, niterations = 100000) 
+		res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*rmax, xgbw[2]*bmax, xgbw[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=10000) 
+	
 		mean, std = res[1][1], res[1][2]
 
 		push!(collect_int, mean)
@@ -401,9 +399,12 @@ end
 md"### Plot coherent cross section"
 
 # ╔═╡ cf65ab08-9fc8-4b40-8480-d3a520c3c258
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=dσcoh_std)
 end
+  ╠═╡ =#
 
 # ╔═╡ 7d367df2-4f2a-4386-8378-fc1cbfa7adf7
 md"Read data from file"
@@ -470,22 +471,28 @@ md"---
 ##### Constituent quark model
 Quark positions $\vec{b}_i$ sampled from a Gaussian distribution with width $B_{qc}$, with $i\in\overline{1, N_q}$ where $N_q$ is the number of constituent quarks.
 
+Density for each quark $\displaystyle T_q(\vec{b})=\dfrac{1}{2\pi B_q}\mathrm{e}^{-\vec{b}^2/(2 B_q)}$. 
+
+Total proton density $\displaystyle T_p(\vec{b})=\dfrac{1}{N_q}\sum_{i}^{1,N_q}T_q(\vec{b}-\vec{b}_i)$.
+
+---
 ##### Parameters
 "
 
 # ╔═╡ 1c5aafaf-1f69-4df4-9e76-12fd97845170
 begin
-	Bqc = 1 # [GeV^-2]
-	Bq = 3 # [GeV^-2]
+	Bqc = 3 # [GeV^-2]
+	Bq = 0.5 # [GeV^-2]
 	Nq = 3 # number of constituent quarks
 end
 
 # ╔═╡ 7a5639cc-c064-4e4d-9c32-76271357104c
-begin
+function sample_bqc(Bqc, Nq)
 	# (bx, by) for each quark i according to a Gaussian
 	σqc = √Bqc
 	gauss_qc = Normal(0, σqc)
 	bqc = [(rand(gauss_qc), rand(gauss_qc)) for _ in 1:Nq]
+	return bqc
 end
 
 # ╔═╡ a26dcc52-d356-4972-8273-f724ebae31a7
@@ -495,20 +502,156 @@ function Tq(b, Bq)
 end
 
 # ╔═╡ 9271fe13-40f8-4e4d-8d46-72b8c4e4e045
-function Tp(b, bqc, Bq)
+function Tp(b, θ_b, bqc, Bq, Nq)
+	bx = b * cos(θ_b)
+    by = b * sin(θ_b)
+    vec_b = (bx, by)
+	
     sum = 0.0
     for bᵢ in bqc
-        delta = (b[1] - bᵢ[1], b[2] - bᵢ[2])
+        delta = (vec_b[1] - bᵢ[1], vec_b[2] - bᵢ[2])
         sum += Tq(delta, Bq)
     end
     return sum / Nq
 end
 
-# ╔═╡ 81071273-26bb-4727-9b3b-d3ea8b91762f
-test_b = (0.0, 0.0)
-
 # ╔═╡ d54d55de-68c5-4a1a-8cc1-d5b4bb4f11c5
-Tp(test_b, bqc, Bq)
+begin
+	test_b, test_θb = 1.0, π / 4
+	test_bqc = sample_bqc(Bqc, Nq)
+	Tp(test_b, test_θb, test_bqc, Bq, Nq)
+end
+
+# ╔═╡ 2e1480e5-2b9b-421a-8783-20b4b87e60de
+md"---
+#### Plot proton thickness function"
+
+# ╔═╡ 998c95e9-79ae-4067-97f9-a1cee0447f95
+function compute_Tp_grid(bx_vals, by_vals, bqc, Bq, Nq)
+
+    Tp_vals = Matrix{Float64}(undef, length(by_vals), length(bx_vals))
+
+    for (i, by) in enumerate(by_vals), (j, bx) in enumerate(bx_vals)
+        b = hypot(bx, by)
+        θ = atan(by, bx)
+        Tp_vals[i, j] = Tp(b, θ, bqc, Bq, Nq)
+    end
+
+    return Tp_vals
+end
+
+# ╔═╡ f497626b-e49a-4bb8-b4ed-9999199399ef
+begin
+	grid_min = -5.0
+	grid_max = 5.0
+	n_grid = 200
+	bx_vals = range(grid_min, grid_max, length=n_grid)
+	by_vals = range(grid_min, grid_max, length=n_grid)
+	
+	Tp_vals = compute_Tp_grid(bx_vals, by_vals, sample_bqc(Bqc, Nq), Bq, Nq)
+end
+
+# ╔═╡ f59fa681-58bc-4f02-8592-ee614c484fb9
+begin
+	default(fontfamily="Computer Modern", framestyle=:box, labelfontsize=14, tickfontsize=12, size=(400,400))
+	
+	heatmap(bx_vals, by_vals, Tp_vals, xlabel=L"b_x\,\,\mathrm{[GeV^{-1}]}", ylabel=L"b_y\,\,\mathrm{[GeV^{-1}]}", title=L"T_p\,(b_x, b_y)", color=reverse(cgrad(:beach)), colorbar=:true)
+end
+
+# ╔═╡ 473959c9-9f67-4e0b-8f4a-718f77143c69
+md"#### MC integration for the cross section
+
+The scattering amplitude simplifies to
+
+$$\begin{aligned}\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})=&\frac{\mathrm{i}}{2}\int\limits_{r_\mathrm{min}}^{r_\mathrm{max}} r\,\mathrm{d} r\int_{b_\mathrm{min}}^{b_\mathrm{max}} b \,\mathrm{d} b \int_{0}^{2\pi} \mathrm{d} \theta_b \int_0^1\mathrm{d}z\, (\Psi^*\Psi_V)_{T,L}(Q^2, r,z)\\ &\times \dfrac{\mathrm{d}\sigma^p_{\mathrm{dip}}}{\mathrm{d}^2 \boldsymbol{b}}(r, b, \theta_b, x_{\mathbb{P}})\mathrm{e}^{-\mathrm{i}b\Delta\cos\theta_b}J_0((1-z)r\Delta)\end{aligned}$$
+where we used $\int_0^{2\pi}d\theta e^{-i a \cos\theta}=2\pi J_0(a)$, with $J_0$ the Bessel function of first kind."
+
+# ╔═╡ 38a806e3-eb2d-4c59-ae0e-d12355668558
+function dσqq̅db_qc(xₚ, r, b, θb, bqc, Tp, N)
+	term_Tp = Tp(b, θb, bqc, Bq, Nq)
+	term_exp = 1 - exp(- N * r * r * Qₛ(xₚ) * Qₛ(xₚ) * term_Tp / 4)
+	return σ₀ * term_exp
+end
+
+# ╔═╡ b1937717-7372-4117-8f99-008dbd62e8d5
+dσqq̅db_qc(xₚ, r, test_b, test_θb, test_bqc, Tp, N)
+
+# ╔═╡ f8aeeabf-e0cc-496a-9eeb-cefdf2fb351f
+function Aqc(r, b, θb, bqc, z, Δ, N, λ, part)
+	# Note that A(λ="L") for Q²=0
+	
+	# t1 = im * r * b
+	# t1 has an overall factor of i/2
+	t1 = r * b
+	t2 = ΨᵥΨ(Q²,r,z,λ)
+	t3 = dσqq̅db_qc(xₚ, r, b, θb, bqc, Tp, N)
+	t4 = exp(- im * b * Δ * cos(θb))
+	t5 = besselj(0, (1-z) * r * Δ)
+	if part == "real"
+		return real(t1 * t2 * t3 * t4 * t5)
+	elseif part == "imag"
+		return imag(t1 * t2 * t3 * t4 * t5)
+	end
+end
+
+# ╔═╡ 247ae5e1-2276-4611-b3cd-e9737aa08bff
+@variables θb
+
+# ╔═╡ cfc38d02-562b-4e4a-8c10-195cc8aa9de0
+Aqc(r, b, θb, test_bqc, z, Δ, N, "T", "imag")
+
+# ╔═╡ 3e39a761-20af-4042-b06c-8e434917ac0a
+begin
+	Nqc = 1
+	θbmax = 2π
+	Nsamples = 10
+	Δ_range_qc = range(0, stop=1.5, length=12)
+end
+
+# ╔═╡ 76641831-cffa-481b-9497-1bcab393d3a2
+function mc_integration(Δ_range_qc, Nsamples)
+	xqc = MCIntegration.Continuous(0,1)
+	
+	collect_var_qc, collect_std_qc = [], []
+	
+	for Δᵢ in Δ_range_qc
+		bqc_samples = [sample_bqc(Bqc, Nq) for _ in 1:Nsamples]
+		int_samples = ComplexF64[]
+	
+		for bqc_sample in bqc_samples
+		
+			resqc_re = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*rmax, xqc[2]*bmax, xqc[3]*θbmax, bqc_sample, xqc[4], Δᵢ, Nqc, "T", "real") * (rmax^2) * (bmax^2); var = xqc, dof = 4, solver=:vegas, neval=10000) 
+
+			resqc_imag = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*rmax, xqc[2]*bmax, xqc[3]*θbmax, bqc_sample, xqc[4], Δᵢ, Nqc, "T", "imag") * (rmax^2) * (bmax^2); var = xqc, dof = 4, solver=:vegas, neval=10000)
+		
+			meanqc = resqc_re[1][1] + resqc_imag[1][1] * im
+	
+			push!(int_samples, meanqc)
+		end
+
+		mean_abs2 = mean(abs2, int_samples)
+		abs2_mean = abs2(mean(int_samples))
+	
+		var_qc = mean_abs2 - abs2_mean
+		std_qc = sqrt(var_qc)
+
+		push!(collect_var_qc, var_qc)
+		push!(collect_std_qc, std_qc)
+	end
+	return collect_var_qc, collect_std_qc
+end
+
+# ╔═╡ f7867551-2486-46aa-b2dc-dba6e3455d56
+@time @allocated collect_var_qc, collect_std_qc = mc_integration(Δ_range_qc, Nsamples)
+
+# ╔═╡ e89c5518-b242-44c0-8ec8-cc62426fac3f
+t_range_qc = Δ_range_qc .* Δ_range_qc
+
+# ╔═╡ 1254ec67-caf9-4897-a8b7-b87f8cb77c40
+begin
+	default(fontfamily="Computer Modern", framestyle=:box, labelfontsize=14, tickfontsize=12, size=(400,400))
+	plt = plot(t_range_qc, collect_var_qc, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=collect_std_qc)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -523,6 +666,7 @@ Nemo = "2edaba10-b0f1-5616-af89-8c11ac63239a"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
@@ -545,7 +689,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "6fc120c3a61d873fbb00cc8ee97cf75739f20feb"
+project_hash = "496e12f36fa0c8a2361a868e463cd7b550509751"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -3445,7 +3589,21 @@ version = "1.4.1+2"
 # ╠═7a5639cc-c064-4e4d-9c32-76271357104c
 # ╠═a26dcc52-d356-4972-8273-f724ebae31a7
 # ╠═9271fe13-40f8-4e4d-8d46-72b8c4e4e045
-# ╠═81071273-26bb-4727-9b3b-d3ea8b91762f
 # ╠═d54d55de-68c5-4a1a-8cc1-d5b4bb4f11c5
+# ╟─2e1480e5-2b9b-421a-8783-20b4b87e60de
+# ╠═998c95e9-79ae-4067-97f9-a1cee0447f95
+# ╠═f497626b-e49a-4bb8-b4ed-9999199399ef
+# ╠═f59fa681-58bc-4f02-8592-ee614c484fb9
+# ╟─473959c9-9f67-4e0b-8f4a-718f77143c69
+# ╠═38a806e3-eb2d-4c59-ae0e-d12355668558
+# ╠═b1937717-7372-4117-8f99-008dbd62e8d5
+# ╠═f8aeeabf-e0cc-496a-9eeb-cefdf2fb351f
+# ╠═247ae5e1-2276-4611-b3cd-e9737aa08bff
+# ╠═cfc38d02-562b-4e4a-8c10-195cc8aa9de0
+# ╠═3e39a761-20af-4042-b06c-8e434917ac0a
+# ╠═76641831-cffa-481b-9497-1bcab393d3a2
+# ╠═f7867551-2486-46aa-b2dc-dba6e3455d56
+# ╠═e89c5518-b242-44c0-8ec8-cc62426fac3f
+# ╠═1254ec67-caf9-4897-a8b7-b87f8cb77c40
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
