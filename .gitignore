@@ -26,3 +26,7 @@ Manifest.toml
 # VSCode
 .vscode/
 .DS_Store
+new_env/
+
+# Plots
+*.png
