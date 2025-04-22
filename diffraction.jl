@@ -16,9 +16,10 @@ begin
 	using Plots 
 	using Nemo # Algebra package, requires for symbolic_solve
 	using DelimitedFiles # Read data from text files
-	using NLsolve
-	using QuadGK
-	using LaTeXStrings
+	using NLsolve # Numerically solve systems of equations
+	using QuadGK # Numerically solve integrals
+	using LaTeXStrings # LaTeX labels in Plots
+	using Distributions # Random numbers, Gaussian distributions
 end
 
 # ╔═╡ 9af71ee8-0317-11f0-102f-69a679def0dd
@@ -87,7 +88,10 @@ begin
 	R² = 2.3 # [GeV^-2]
 
 	Q² = 0 # data for J/ψ photoproduction at Q²=0
-	W = 100 # [GeV]
+	# W = 100 # [GeV] corresponds to xₚ = 9.6 * 10^-4
+	# xₚ = 9.6 * 10^(-4)
+	W = 75 # [GeV] corresponds to xₚ = 1.7 * 10^-3
+	xₚ = 1.7 * 10^(-3)
 end
 
 # ╔═╡ a58aa4bc-1d68-45a6-a4e8-f3a67744da13
@@ -102,11 +106,10 @@ function xp(t)
 end
 
 # ╔═╡ 96737eda-4f4b-427f-9644-a9b9540b360d
-xp(t)
-
-# ╔═╡ b0820c13-089b-485b-948f-103b20773c90
-# xₚ = xp(0)
-xₚ = 9.6 * 10^(-4)
+begin
+	xp(t)
+	# xₚ = xp(0)
+end
 
 # ╔═╡ d4f451d1-4a4b-4582-b4b9-9728bdebc25b
 md"##### Functions"
@@ -365,7 +368,7 @@ A(r, b, z, Δ, N₀, "L")
 
 # ╔═╡ 9a34be0d-a8bc-4b98-9135-59edded0301c
 begin
-	X = Continuous(0,1)
+	X = MCIntegration.Continuous(0,1)
 
 	# todo: iterate over Δ values, currently fix Δ
 	# Δ_test = 0.3
@@ -376,11 +379,12 @@ begin
 	
 	for Δᵢ in Δ_range
 		
-		res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas) 
+		res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas, neval=10000) 
+		# res = MCIntegration.integrate((X, c)->A(X[1]*rmax, X[2]*bmax, X[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = X, dof = 3, solver=:vegas, niterations = 100000) 
 		mean, std = res[1][1], res[1][2]
 
 		push!(collect_int, mean)
-		# push!(collect_int_std, std)
+		push!(collect_int_std, std)
 	end
 end
 
@@ -390,7 +394,7 @@ begin
 
 	units = (16/π) * 10^6 # [nb/GeV²]
 	dσcoh = abs.(collect_int .* collect_int) ./ units 
-	# dσcoh_std = 2 .* collect_int .* collect_int_std ./ units
+	dσcoh_std = 2 .* collect_int .* collect_int_std ./ units
 end
 
 # ╔═╡ a87202ea-84fd-4977-928e-89d4bd70d5f1
@@ -398,7 +402,7 @@ md"### Plot coherent cross section"
 
 # ╔═╡ cf65ab08-9fc8-4b40-8480-d3a520c3c258
 begin
-	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10)
+	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=dσcoh_std)
 end
 
 # ╔═╡ 7d367df2-4f2a-4386-8378-fc1cbfa7adf7
@@ -439,7 +443,7 @@ begin
 	
 	# plot(bin_edges, [0; bin_heights; 0], seriestype=:step, label="dsigma", lw=2, color=:blue)
 
-	plot(t_range, dσcoh, yscale=:log10, yticks = :auto, minor_ticks = true, label="GBW", dpi=600)
+	plot(t_range, dσcoh, yscale=:log10, yticks = :auto, minor_ticks = true, label="GBW", dpi=600, ribbon=dσcoh_std)
 	
 	scatter!(tcent_hera, dσcoh_hera, yerr=Δtot_hera, label="Coherent H1", color=:blue, marker=:utriangle, markersize=5, legend_marker_scale = 0.1)
 	
@@ -461,10 +465,56 @@ Incoherent diffraction cross section
 $$\dfrac{\mathrm{d}\sigma^{\gamma^*p\rightarrow Vp}_\mathrm{inc}}{\mathrm{d}t}=\dfrac{1}{16\pi}\left(\left\langle\left|\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})\right|^2\right\rangle-\left|\langle\mathcal{A}_{T,L}^{\gamma^*p\rightarrow Vp}(x_{\mathbb{P}}, Q^2, \boldsymbol{\Delta})\rangle\right|^2\right)$$
 "
 
+# ╔═╡ 79d36a2f-fe75-4334-915d-d86756f93e13
+md"---
+##### Constituent quark model
+Quark positions $\vec{b}_i$ sampled from a Gaussian distribution with width $B_{qc}$, with $i\in\overline{1, N_q}$ where $N_q$ is the number of constituent quarks.
+
+##### Parameters
+"
+
+# ╔═╡ 1c5aafaf-1f69-4df4-9e76-12fd97845170
+begin
+	Bqc = 1 # [GeV^-2]
+	Bq = 3 # [GeV^-2]
+	Nq = 3 # number of constituent quarks
+end
+
+# ╔═╡ 7a5639cc-c064-4e4d-9c32-76271357104c
+begin
+	# (bx, by) for each quark i according to a Gaussian
+	σqc = √Bqc
+	gauss_qc = Normal(0, σqc)
+	bqc = [(rand(gauss_qc), rand(gauss_qc)) for _ in 1:Nq]
+end
+
+# ╔═╡ a26dcc52-d356-4972-8273-f724ebae31a7
+function Tq(b, Bq)
+    norm_squared = b[1]^2 + b[2]^2
+    return (1 / (2π * Bq)) * exp(-norm_squared / (2 * Bq))
+end
+
+# ╔═╡ 9271fe13-40f8-4e4d-8d46-72b8c4e4e045
+function Tp(b, bqc, Bq)
+    sum = 0.0
+    for bᵢ in bqc
+        delta = (b[1] - bᵢ[1], b[2] - bᵢ[2])
+        sum += Tq(delta, Bq)
+    end
+    return sum / Nq
+end
+
+# ╔═╡ 81071273-26bb-4727-9b3b-d3ea8b91762f
+test_b = (0.0, 0.0)
+
+# ╔═╡ d54d55de-68c5-4a1a-8cc1-d5b4bb4f11c5
+Tp(test_b, bqc, Bq)
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
@@ -477,6 +527,7 @@ SymbolicNumericIntegration = "78aadeae-fbc0-11eb-17b6-c7ec0477ba9e"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
+Distributions = "~0.25.118"
 LaTeXStrings = "~1.4.0"
 MCIntegration = "~0.4.2"
 NLsolve = "~4.5.1"
@@ -494,7 +545,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "dc84a6a58c223d15d38fd4304f744fc52cb522f8"
+project_hash = "6fc120c3a61d873fbb00cc8ee97cf75739f20feb"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -3343,7 +3394,6 @@ version = "1.4.1+2"
 # ╠═a58aa4bc-1d68-45a6-a4e8-f3a67744da13
 # ╠═03f627f3-f72e-4f67-bc0c-822e491fd81d
 # ╠═96737eda-4f4b-427f-9644-a9b9540b360d
-# ╠═b0820c13-089b-485b-948f-103b20773c90
 # ╟─d4f451d1-4a4b-4582-b4b9-9728bdebc25b
 # ╠═0b4680a1-b139-4720-87d4-62025e30feba
 # ╠═a61eb470-b3f8-4739-8533-5476f8ff93bd
@@ -3390,5 +3440,12 @@ version = "1.4.1+2"
 # ╠═36e4a26a-530b-4d33-8898-8366d0aac22f
 # ╠═f021e371-1821-4c86-9aff-af2a7a7f0976
 # ╟─223f2010-a5fb-4bdd-84b9-b2483a40a400
+# ╟─79d36a2f-fe75-4334-915d-d86756f93e13
+# ╠═1c5aafaf-1f69-4df4-9e76-12fd97845170
+# ╠═7a5639cc-c064-4e4d-9c32-76271357104c
+# ╠═a26dcc52-d356-4972-8273-f724ebae31a7
+# ╠═9271fe13-40f8-4e4d-8d46-72b8c4e4e045
+# ╠═81071273-26bb-4727-9b3b-d3ea8b91762f
+# ╠═d54d55de-68c5-4a1a-8cc1-d5b4bb4f11c5
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
