@@ -8,16 +8,14 @@ Packages
 
 using SpecialFunctions # Modified Bessel functions of second kind
 using Symbolics # Symbolic calculation, partial derivatives
-# using LinearAlgebra # Useful functions
 using MCIntegration # MC algorithms for high-dimensional integrals
+using Distributions # Random numbers, Gaussian distributions
+# using LinearAlgebra # Useful functions
 # using SymbolicNumericIntegration # Symbolic integration
-# using Plots # Basic plotting
 # using Nemo # Algebra package, requires for symbolic_solve
 # using DelimitedFiles # Read data from text files
 # using NLsolve # Numerically solve systems of equations
 # using QuadGK # Numerically solve integrals
-# using LaTeXStrings # LaTeX labels in Plots
-# using Distributions # Random numbers, Gaussian distributions
 # using Statistics # Variance, standard deviation
 
 """
@@ -74,20 +72,26 @@ params_mc = (
     Δmin = 0.0,
     Δmax = 1.0,
     Δlen = 15,
-    neval = 500000, # number of evaluations for MC integration
+    neval = 100000, # number of evaluations for MC integration
+    niters = 10, # number of iterations for MC integration
 )
 
 export params_mc
 
-diff_mode = "coh" # "coherent" or "incoherent"
+diff_mode = "coh" # "coh" or "incoh"
 dipole_mode = "GWB" # "GWB" or "CQ"
 
 export diff_mode, dipole_mode
 
-# Consistuent quark model parameters
-Bqc = 3 # [GeV^-2]
-Bq = 0.5 # [GeV^-2]
-Nq = 3 # number of constituent quarks
+params_cq = (
+    N₀ = 10, # normalization 
+    Bqc = 3, # [GeV^-2]
+    Bq = 0.5, # [GeV^-2]
+    Nq = 3, # number of constituent quarks
+    Nsamples = 10, # number of samples for bqc
+)
+
+export params_cq
 
 """
 Variables
@@ -104,10 +108,11 @@ Routines to extract coherent + incoherent dσ/dt
 include("wavefunction.jl") 
 export ϕ, ΨᵥΨ
 
-include("gbwdipole.jl") 
+include("dipole.jl") 
 export Qₛ, T, gbwdipole
+export sample_bqc, Tq, Tp, compute_Tp_grid
 
 include("diffractive.jl")
-export Agbw, diffractive
+export Agbw, Aqc, diffractive
 
 end

@@ -377,7 +377,7 @@ begin
 	
 	for Δᵢ in Δ_range
 		
-		res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*rmax, xgbw[2]*bmax, xgbw[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=10000) 
+		res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*rmax, xgbw[2]*bmax, xgbw[3], Δᵢ, N₀, "T") * (rmax^2) * (bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=100000, niter=10) 
 	
 		mean, std = res[1][1], res[1][2]
 
