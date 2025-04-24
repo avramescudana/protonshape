@@ -17,6 +17,8 @@ using Distributions # Random numbers, Gaussian distributions
 # using NLsolve # Numerically solve systems of equations
 # using QuadGK # Numerically solve integrals
 # using Statistics # Variance, standard deviation
+# using RecipesBase # Plotting recipes
+using Base.Threads # Multithreading
 
 """
 Parameters
@@ -24,7 +26,7 @@ Parameters
 
 # Wavefunctions overlap parameters
 
-αₑₘ = 1/137 # QED running coupling at Q²∼0
+αₑₘ = 1/137 # QED running coupling at Q²∼0y
 
 params_wavefct = (
     Nₜ = 0.578, 

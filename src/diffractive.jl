@@ -32,6 +32,18 @@ function Aqc(r, b, θb, bqc, z, Δ, Tp, p_wavefct, p_gbw, p_cq, part)
 	end
 end
 
+function threaded_loop(run_threads, range, body)
+    if run_threads
+        @threads for i in range
+            body(i)
+        end
+    else
+        for i in range
+            body(i)
+        end
+    end
+end
+
 function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc)
     if diff == "coh"
         if dip == "GWB"
@@ -64,7 +76,8 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc)
             
             collect_int, collect_int_std = [], []
             
-            for Δᵢ in Δ_range
+            # for Δᵢ in Δ_range
+            threaded_loop(run_threads, eachindex(Δ_range)) do i
                 bqc_samples = [sample_bqc(p_cq) for _ in 1:p_cq.Nsamples]
                 int_samples = ComplexF64[]
             
