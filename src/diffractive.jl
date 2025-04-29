@@ -44,73 +44,83 @@ function threaded_loop(run_threads, range, body)
     end
 end
 
-function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc)
-    if diff == "coh"
-        if dip == "GWB"
-            xgbw = MCIntegration.Continuous(0,1)
+function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
+    if dip == "GWB"
+        xgbw = MCIntegration.Continuous(0,1)
 
-            Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
-            t_range = Δ_range .* Δ_range 
+        Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
+        t_range = Δ_range .* Δ_range 
+        
+        collect_int, collect_int_std = [], []
+        
+        for Δᵢ in Δ_range
             
-            collect_int, collect_int_std = [], []
-            
-            for Δᵢ in Δ_range
-                
-                res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*p_mc.rmax, xgbw[2]*p_mc.bmax, xgbw[3], Δᵢ, p_wavefct, p_gbw) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
-            
-                mean, std = res[1][1], res[1][2]
+            res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*p_mc.rmax, xgbw[2]*p_mc.bmax, xgbw[3], Δᵢ, p_wavefct, p_gbw) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
+        
+            mean, std = res[1][1], res[1][2]
 
-                push!(collect_int, mean)
-                push!(collect_int_std, std)
-            end
-            
-            units = (16/π) * 10^6 # [nb/GeV²]
+            push!(collect_int, mean)
+            push!(collect_int_std, std)
+        end
+        
+        units = (16/π) * 10^6 # [nb/GeV²]
 
-            dσdt = abs.(collect_int .* collect_int) ./ units 
-	        dσdt_err = 2 .* collect_int .* collect_int_std ./ units
-        elseif dip == "CQ"
-            xqc = MCIntegration.Continuous(0,1)
-	
-            Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
-            t_range = Δ_range .* Δ_range 
-            
-            collect_int, collect_int_std = [], []
-            
-            # for Δᵢ in Δ_range
-            threaded_loop(run_threads, eachindex(Δ_range)) do i
-                bqc_samples = [sample_bqc(p_cq) for _ in 1:p_cq.Nsamples]
-                int_samples = ComplexF64[]
-            
-                for bqc_sample in bqc_samples
-                
-                    resqc_re = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters) 
-
-                    resqc_imag = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
-                
-                    meanqc = resqc_re[1][1] + resqc_imag[1][1] * im
-            
-                    push!(int_samples, meanqc)
-                end
-
-                mean_abs2 = mean(abs2, int_samples)
-                abs2_mean = abs2(mean(int_samples))
-            
-                var_qc = mean_abs2 - abs2_mean
-                std_qc = sqrt(var_qc)
-
-                # push!(collect_var_qc, var_qc)
-                # push!(collect_std_qc, std_qc)
-
-                push!(collect_int, abs2_mean)
-                push!(collect_int_std, std_qc)
-
-            units = (16/π) * 10^6 # [nb/GeV²]
-
+        if diff == "coh"
             dσdt = abs.(collect_int .* collect_int) ./ units 
             dσdt_err = 2 .* collect_int .* collect_int_std ./ units
-            end
+        elseif diff == "incoh"
+            println("Incoherent cross section not implemented for GWB dipole model")
         end
-    end
+    elseif dip == "CQ"
+        xqc = MCIntegration.Continuous(0,1)
 
+        Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
+        t_range = Δ_range .* Δ_range 
+        
+        collect_int = Vector{Float64}(undef, length(Δ_range))
+        collect_int_std = Vector{Float64}(undef, length(Δ_range))
+        collect_int_var = Vector{Float64}(undef, length(Δ_range)) 
+        
+        threaded_loop(run_threads, eachindex(Δ_range), i -> begin
+            Δᵢ = Δ_range[i]
+            bqc_samples = [sample_bqc(p_cq) for _ in 1:p_cq.Nsamples]
+            int_samples = ComplexF64[]
+        
+            for bqc_sample in bqc_samples
+            
+                resqc_re = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters) 
+
+                resqc_imag = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
+            
+                meanqc = resqc_re[1][1] + resqc_imag[1][1] * im
+        
+                push!(int_samples, meanqc)
+            end
+
+            mean_abs2 = mean(abs2, int_samples)
+            abs2_mean = abs2(mean(int_samples))
+        
+            var_qc = mean_abs2 - abs2_mean
+            std_qc = sqrt(var_qc)
+
+            if diff == "coh"
+                collect_int[i] = abs2_mean
+            elseif diff == "incoh"
+                collect_int_var[i] = var_qc
+            end
+
+            collect_int_std[i] = std_qc
+
+        units = (16/π) * 10^6 # [nb/GeV²]
+
+        if diff == "coh"
+            dσdt = abs.(collect_int .* collect_int) ./ units 
+        elseif diff == "incoh"
+            dσdt = collect_int_var ./ units 
+        end
+        #TODO: check error calculation
+        dσdt_err = 2 .* collect_int .* collect_int_std ./ units
+        end)
+    end
     return t_range, dσdt, dσdt_err
 end

@@ -1,7 +1,5 @@
 module CrossSection
 
-export mcintsigmacoh, mcintsigmainc
-
 """
 Packages
 """
@@ -10,6 +8,8 @@ using SpecialFunctions # Modified Bessel functions of second kind
 using Symbolics # Symbolic calculation, partial derivatives
 using MCIntegration # MC algorithms for high-dimensional integrals
 using Distributions # Random numbers, Gaussian distributions
+using Base.Threads # Multithreading
+
 # using LinearAlgebra # Useful functions
 # using SymbolicNumericIntegration # Symbolic integration
 # using Nemo # Algebra package, requires for symbolic_solve
@@ -17,8 +17,6 @@ using Distributions # Random numbers, Gaussian distributions
 # using NLsolve # Numerically solve systems of equations
 # using QuadGK # Numerically solve integrals
 # using Statistics # Variance, standard deviation
-# using RecipesBase # Plotting recipes
-using Base.Threads # Multithreading
 
 """
 Parameters
@@ -86,11 +84,11 @@ dipole_mode = "GWB" # "GWB" or "CQ"
 export diff_mode, dipole_mode
 
 params_cq = (
-    N₀ = 10, # normalization 
-    Bqc = 3, # [GeV^-2]
-    Bq = 0.5, # [GeV^-2]
+    N₀ = 12, # normalization 
+    Bqc = 3.3, # [GeV^-2]
+    Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 10, # number of samples for bqc
+    Nsamples = 50, # number of samples for bqc
 )
 
 export params_cq

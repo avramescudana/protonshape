@@ -398,14 +398,6 @@ end
 # ╔═╡ a87202ea-84fd-4977-928e-89d4bd70d5f1
 md"### Plot coherent cross section"
 
-# ╔═╡ cf65ab08-9fc8-4b40-8480-d3a520c3c258
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=dσcoh_std)
-end
-  ╠═╡ =#
-
 # ╔═╡ 7d367df2-4f2a-4386-8378-fc1cbfa7adf7
 md"Read data from file"
 
@@ -648,10 +640,20 @@ end
 t_range_qc = Δ_range_qc .* Δ_range_qc
 
 # ╔═╡ 1254ec67-caf9-4897-a8b7-b87f8cb77c40
+#=╠═╡
 begin
 	default(fontfamily="Computer Modern", framestyle=:box, labelfontsize=14, tickfontsize=12, size=(400,400))
 	plt = plot(t_range_qc, collect_var_qc, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=collect_std_qc)
 end
+  ╠═╡ =#
+
+# ╔═╡ cf65ab08-9fc8-4b40-8480-d3a520c3c258
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	plt = plot(t_range, dσcoh, xlabel="|t|", ylabel="dσ/d|t|", yaxis=:log10, ribbon=dσcoh_std)
+end
+  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """

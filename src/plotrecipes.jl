@@ -1,3 +1,7 @@
+using Plots
+using LaTeXStrings
+using RecipesBase
+
 struct CoherentMCData
     t_range::Vector{Float64}
     dσdt::Vector{Float64}
@@ -7,7 +11,7 @@ struct CoherentMCData
     Δtot_hera::Vector{Float64}
 end
 
-@recipe function f(data::CoherentMCData)
+@recipe function f(data::CoherentMCData; custom_label="GBW")
     fontfamily --> "Computer Modern"
     framestyle --> :box
     legendfontsize --> 11
@@ -26,7 +30,7 @@ end
 
     @series begin
         seriestype := :path
-        label := "GBW"
+        label := custom_label
         ribbon := data.dσdt_err
         data.t_range, data.dσdt
     end
