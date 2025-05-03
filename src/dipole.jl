@@ -62,7 +62,8 @@ end
 
 function cqdipole(r, b, θb, bqc, Tp, p_gbw, p_cq)
 	term_Tp = Tp(b, θb, bqc, p_cq)
-	term_exp = 1 - exp(- p_cq.N₀ * r * r * Qₛ(p_gbw) * Qₛ(p_gbw) * term_Tp / 4)
-	# return p_gbw.σ₀ * term_exp
+    #TODO: remove p_gwb, Qₛ(p_gbw) is not used
+	# term_exp = 1 - exp(- p_cq.N₀ * r * r * Qₛ(p_gbw) * Qₛ(p_gbw) * term_Tp)
+    term_exp = 1 - exp(- p_cq.N₀ * r * r * term_Tp)
     return 2 * term_exp
 end

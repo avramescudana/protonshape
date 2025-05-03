@@ -9,14 +9,7 @@ using Symbolics # Symbolic calculation, partial derivatives
 using MCIntegration # MC algorithms for high-dimensional integrals
 using Distributions # Random numbers, Gaussian distributions
 using Base.Threads # Multithreading
-
-# using LinearAlgebra # Useful functions
-# using SymbolicNumericIntegration # Symbolic integration
-# using Nemo # Algebra package, requires for symbolic_solve
-# using DelimitedFiles # Read data from text files
-# using NLsolve # Numerically solve systems of equations
-# using QuadGK # Numerically solve integrals
-# using Statistics # Variance, standard deviation
+using Statistics # Variance, mean
 
 """
 Parameters
@@ -62,16 +55,16 @@ export params_gbw
 
 params_mc = (
     rmin = 0.0,
-    rmax = 5.0 * ħcinv, # rmax ≈ 1 fm, maximum dipole size < proton radius
+    rmax = 1.0 * ħcinv, # rmax ≈ 1 fm, maximum dipole size < proton radius
     bmin = 0.0,
-    bmax = 50 * ħcinv, # bmax ≈ 10 fm, maximum impact parameter
+    bmax = 10 * ħcinv, # bmax ≈ 10 fm, maximum impact parameter
     zmin = 0.0,
     zmax = 1.0,
     θbmin = 0.0,
     θbmax = 2π,
     Δmin = 0.0,
-    Δmax = 1.0,
-    Δlen = 15,
+    Δmax = 2,
+    Δlen = 20,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
 )
@@ -84,11 +77,11 @@ dipole_mode = "GWB" # "GWB" or "CQ"
 export diff_mode, dipole_mode
 
 params_cq = (
-    N₀ = 12, # normalization 
+    N₀ = 1, # normalization 
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 50, # number of samples for bqc
+    Nsamples = 70, # number of samples for bqc
 )
 
 export params_cq

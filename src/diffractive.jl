@@ -25,10 +25,11 @@ function Aqc(r, b, θb, bqc, z, Δ, Tp, p_wavefct, p_gbw, p_cq, part)
 	t3 = cqdipole(r, b, θb, bqc, Tp, p_gbw, p_cq)
 	t4 = exp(- im * b * Δ * cos(θb))
 	t5 = besselj(0, (1-z) * r * Δ)
+    prod = t1 * t2 * t3 * t4 * t5
 	if part == "real"
-		return Symbolics.value(real(t1 * t2 * t3 * t4 * t5))
+		return Symbolics.value(real(prod))
 	elseif part == "imag"
-		return Symbolics.value(imag(t1 * t2 * t3 * t4 * t5))
+		return Symbolics.value(imag(prod))
 	end
 end
 
@@ -46,6 +47,7 @@ end
 
 function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
     if dip == "GWB"
+        #TODO: rewrite this part to use the same structure as CQ
         xgbw = MCIntegration.Continuous(0,1)
 
         Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
@@ -67,7 +69,7 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
 
         if diff == "coh"
             dσdt = abs.(collect_int .* collect_int) ./ units 
-            dσdt_err = 2 .* collect_int .* collect_int_std ./ units
+            dσdt_mcerr = 2 .* collect_int .* collect_int_std ./ units
         elseif diff == "incoh"
             println("Incoherent cross section not implemented for GWB dipole model")
         end
@@ -76,51 +78,44 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
 
         Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
         t_range = Δ_range .* Δ_range 
-        
-        collect_int = Vector{Float64}(undef, length(Δ_range))
-        collect_int_std = Vector{Float64}(undef, length(Δ_range))
-        collect_int_var = Vector{Float64}(undef, length(Δ_range)) 
-        
-        threaded_loop(run_threads, eachindex(Δ_range), i -> begin
-            Δᵢ = Δ_range[i]
-            bqc_samples = [sample_bqc(p_cq) for _ in 1:p_cq.Nsamples]
-            int_samples = ComplexF64[]
-        
-            for bqc_sample in bqc_samples
-            
-                resqc_re = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters) 
 
-                resqc_imag = MCIntegration.integrate((xqc, c)->Aqc(xqc[1]*p_mc.rmax, xqc[2]*p_mc.bmax, xqc[3]*p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
-            
-                meanqc = resqc_re[1][1] + resqc_imag[1][1] * im
-        
-                push!(int_samples, meanqc)
+        collect_abs2 = [Float64[] for _ in 1:p_cq.Nsamples]
+        collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
+
+        threaded_loop(run_threads, 1:p_cq.Nsamples, ibq -> begin
+            bqc_sample = sample_bqc(p_cq)  
+            abs2_for_sample = Float64[]  
+
+            for (i, Δᵢ) in enumerate(Δ_range)
+                resqc_re = MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                resqc_imag = MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
+
+                push!(abs2_for_sample, abs2(A_sample))  
+                push!(collect_A[i], A_sample)
             end
 
-            mean_abs2 = mean(abs2, int_samples)
-            abs2_mean = abs2(mean(int_samples))
-        
-            var_qc = mean_abs2 - abs2_mean
-            std_qc = sqrt(var_qc)
-
-            if diff == "coh"
-                collect_int[i] = abs2_mean
-            elseif diff == "incoh"
-                collect_int_var[i] = var_qc
-            end
-
-            collect_int_std[i] = std_qc
-
-        units = (16/π) * 10^6 # [nb/GeV²]
-
-        if diff == "coh"
-            dσdt = abs.(collect_int .* collect_int) ./ units 
-        elseif diff == "incoh"
-            dσdt = collect_int_var ./ units 
-        end
-        #TODO: check error calculation
-        dσdt_err = 2 .* collect_int .* collect_int_std ./ units
+            collect_abs2[ibq] = abs2_for_sample
         end)
+
+        abs2_mean = [abs2(mean(A_samples)) for A_samples in collect_A]
+        mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
+        factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
+
+        std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
+        N = length(collect_A[1])  
+        error_abs2_mean = [std / sqrt(N) for std in std_A]
+
+        dσdt_coh = abs2_mean .* factor
+        dσdt_coh_err = error_abs2_mean .* factor
+        dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
     end
-    return t_range, dσdt, dσdt_err
+    if diff == "coh" || diff == "incoh"
+        # TODO: implement output only for coh or incoh
+        return t_range
+    elseif diff == "coh+incoh"
+        return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh
+    end
 end
