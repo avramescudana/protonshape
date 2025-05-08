@@ -14,7 +14,8 @@ end
 
 function gbwdipole(r, b, p)
 	term_exp = 1 - exp(- p.N₀ * r * r * Qₛ(p) * Qₛ(p) * T(b, p) / 4)
-	return p.σ₀ * term_exp
+	# return p.σ₀ * term_exp
+    return 2 * term_exp
 end
 
 """

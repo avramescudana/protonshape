@@ -15,9 +15,9 @@ end
 @recipe function f(data::CoherentMCData; custom_label="GBW")
     fontfamily --> "Computer Modern"
     framestyle --> :box
-    legendfontsize --> 11
+    legendfontsize --> 10
     labelfontsize --> 14
-    tickfontsize --> 12
+    tickfontsize --> 11
     size --> (500, 400)
     foreground_color_legend --> nothing
     background_color_legend --> nothing
@@ -27,11 +27,12 @@ end
     ylabel --> L"\mathrm{d}\sigma/\mathrm{d}|t|\;[\mathrm{nb}/\mathrm{GeV}^2]"
     xlims --> (0.0, 1.0)
     yticks --> :auto
-    # yaxis --> :log10
+    yaxis --> :log10
 
     @series begin
         seriestype := :path
         label := custom_label
+        linewidth := 1
         ribbon := data.dσdt_err
         data.t_range, data.dσdt
     end
@@ -42,7 +43,7 @@ end
         label := "Coherent H1"
         color := :blue
         marker := :utriangle
-        markersize := 5
+        markersize := 3.5
         data.tcent_hera, data.dσcoh_hera
     end
 end

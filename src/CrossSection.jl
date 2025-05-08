@@ -10,6 +10,7 @@ using MCIntegration # MC algorithms for high-dimensional integrals
 using Distributions # Random numbers, Gaussian distributions
 using Base.Threads # Multithreading
 using Statistics # Variance, mean
+using ProgressMeter # Progress bar
 
 """
 Parameters
@@ -38,11 +39,12 @@ export params_wavefct
 # Fit to F₂ data including charm quarks 
 
 params_gbw = (
-    σ₀ = 29 * 2.56819, # [mb] 1 mb = 2.56819 GeV−2
+    # σ₀ = 29 * 2.56819, # [mb] 1 mb = 2.56819 GeV−2
+    # σ₀ = 29, # [mb] 
     Λ = 0.28,
     x₀ = 4 * 10^(-5),
     Bₚ = 4, # [GeV^-2]
-    N₀ = 50, # normalization 
+    N₀ = 2, # normalization 
     xₚ = 1.7 * 10^(-3), # corresponds to W = 75 GeV
     # xₚ = 9.6 * 10^(-4), # corresponds to W = 100 GeV
 )
@@ -63,7 +65,7 @@ params_mc = (
     θbmin = 0.0,
     θbmax = 2π,
     Δmin = 0.0,
-    Δmax = 2,
+    Δmax = 1,
     Δlen = 20,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
@@ -81,7 +83,7 @@ params_cq = (
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 70, # number of samples for bqc
+    Nsamples = 10, # number of samples for bqc
 )
 
 export params_cq

@@ -1,6 +1,10 @@
 include("wavefunction.jl") # Overlap of photon and vector meson wavefunctions
 include("dipole.jl") # GWB and CQ dipole models
 
+"""
+Main functions
+"""
+
 function Agbw(r, b, z, Δ, p_wavefct, p_gbw)
 	# Note that A(λ="L") for Q²=0
 
@@ -33,18 +37,6 @@ function Aqc(r, b, θb, bqc, z, Δ, Tp, p_wavefct, p_gbw, p_cq, part)
 	end
 end
 
-function threaded_loop(run_threads, range, body)
-    if run_threads
-        @threads for i in range
-            body(i)
-        end
-    else
-        for i in range
-            body(i)
-        end
-    end
-end
-
 function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
     if dip == "GWB"
         #TODO: rewrite this part to use the same structure as CQ
@@ -55,24 +47,29 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
         
         collect_int, collect_int_std = [], []
         
-        for Δᵢ in Δ_range
-            
-            res = MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*p_mc.rmax, xgbw[2]*p_mc.bmax, xgbw[3], Δᵢ, p_wavefct, p_gbw) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
-        
+        #TODO: use threads for this part
+        @showprogress for Δᵢ in Δ_range
+            res = suppress_mcoutput(() -> begin
+                MCIntegration.integrate((xgbw, c)->Agbw(xgbw[1]*p_mc.rmax, xgbw[2]*p_mc.bmax, xgbw[3], Δᵢ, p_wavefct, p_gbw) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xgbw, dof = 3, solver=:vegas, neval=p_mc.neval, niters=p_mc.niters)
+            end, redirect_output = true, output_file = "mcintegrate_log.txt")
+
+
             mean, std = res[1][1], res[1][2]
+            mean, std = mean * π, std * π
 
             push!(collect_int, mean)
             push!(collect_int_std, std)
         end
         
-        units = (16/π) * 10^6 # [nb/GeV²]
+        factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
 
         if diff == "coh"
-            dσdt = abs.(collect_int .* collect_int) ./ units 
-            dσdt_mcerr = 2 .* collect_int .* collect_int_std ./ units
+            dσdt = abs.(collect_int .* collect_int) .* factor 
+            dσdt_mcerr = 2 .* collect_int .* collect_int_std .* factor
         elseif diff == "incoh"
             println("Incoherent cross section not implemented for GWB dipole model")
         end
+        return t_range, dσdt, dσdt_mcerr
     elseif dip == "CQ"
         xqc = MCIntegration.Continuous(0,1)
 
@@ -87,6 +84,17 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
             abs2_for_sample = Float64[]  
 
             for (i, Δᵢ) in enumerate(Δ_range)
+                # log_file_re = "mcintegrate_re_log_thread_$(ibq)_index_$(i).log"
+                # log_file_im = "mcintegrate_im_log_thread_$(ibq)_index_$(i).log"
+                
+                # resqc_re = suppress_mcoutput_thread(() -> begin
+                #     MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+                # end, redirect_output = true)
+
+                # resqc_imag = suppress_mcoutput_thread(() -> begin
+                #     MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+                # end, redirect_output = true)
+
                 resqc_re = MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "real") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
 
                 resqc_imag = MCIntegration.integrate((xqc, c) -> Aqc(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, bqc_sample, xqc[4], Δᵢ, Tp, p_wavefct, p_gbw, p_cq, "imag") * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
@@ -117,5 +125,66 @@ function diffractive(diff, dip, p_wavefct, p_gbw, p_cq, p_mc; run_threads=false)
         return t_range
     elseif diff == "coh+incoh"
         return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh
+    end
+end
+
+"""
+Helper functions
+"""
+
+function threaded_loop(run_threads, range, body)
+    if run_threads
+        # progress = Progress(length(range), desc="Progress")
+
+        # @showprogress @threads for i in range
+        @threads for i in range
+            body(i)
+            # lock(output_lock) do
+            #     next!(progress)  
+            # end
+        end
+
+        # finish!(progress)
+    else
+        @showprogress for i in range
+            body(i)
+        end
+    end
+end
+
+function suppress_mcoutput(body; redirect_output = true, output_file = nothing)
+    if redirect_output
+        file = output_file === nothing ? "/dev/null" : output_file
+
+        open(file, "w") do io
+            redirect_stdout(io) do
+                redirect_stderr(io) do
+                    return body()
+                end
+            end
+        end
+    else
+        return body()
+    end
+end
+
+function suppress_mcoutput_thread(body; redirect_output = true)
+    if redirect_output
+        # temp_file = tempname()
+        temp_file = "/dev/null"
+
+        try
+            open(temp_file, "w") do io
+                redirect_stdout(io) do
+                    redirect_stderr(io) do
+                        return body()
+                    end
+                end
+            end
+        finally
+            # isfile(temp_file) && rm(temp_file)
+        end
+    else
+        return body()
     end
 end

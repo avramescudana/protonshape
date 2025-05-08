@@ -31,5 +31,7 @@ new_env/
 # Plots
 *.png
 
-# Results
+# Results, outputs, and logs
 *.jls
+*.txt
+*.log
