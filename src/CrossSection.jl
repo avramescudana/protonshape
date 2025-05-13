@@ -83,10 +83,14 @@ params_cq = (
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 10, # number of samples for bqc
+    Nsamples = 70, # number of samples for bqc
 )
 
 export params_cq
+
+params_shape = (
+    α = 0.05, # gaussian radial function
+)
 
 """
 Variables
@@ -109,5 +113,12 @@ export sample_bqc, Tq, Tp, compute_Tp_grid
 
 include("diffractive.jl")
 export Agbw, Aqc, diffractive
+
+"""
+Shape functions
+"""
+
+# include("shape.jl")
+# export build_base_density_2D_general
 
 end
