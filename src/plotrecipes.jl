@@ -24,7 +24,7 @@ end
     dpi --> 600
 
     xlabel --> L"|t|\;[\mathrm{GeV}^2]"
-    ylabel --> L"\mathrm{d}\sigma/\mathrm{d}|t|\;[\mathrm{nb}/\mathrm{GeV}^2]"
+    ylabel --> L"\mathrm{d}\sigma/\mathrm{d}|t|\;[\mathrm{nb}/\mathrm{GeV}^2]" 
     xlims --> (0.0, 1.0)
     yticks --> :auto
     yaxis --> :log10
@@ -117,3 +117,82 @@ end
     end
 end
 
+"""
+Plot multipe configurations for the circular membrane
+"""
+
+struct SingleConfiguration
+    coeff_dict::Dict{Tuple{Int,Int}, Float64}
+    L::Float64
+    Nx::Int
+    Ny::Int
+    alpha::Float64
+    envelope_func::Function
+    a::Float64
+end
+
+@recipe function f(cfg::SingleConfiguration)
+    x_vals = range(-cfg.L, cfg.L, length=cfg.Nx)
+    y_vals = range(-cfg.L, cfg.L, length=cfg.Ny)
+    X = repeat(x_vals, 1, cfg.Ny)
+    Y = repeat(y_vals', cfg.Nx, 1)
+
+    base_density = density_2D(X, Y, cfg.coeff_dict; alpha=cfg.alpha, envelope_func=cfg.envelope_func, a=cfg.a)
+
+    seriestype := :heatmap
+    xlabel := L"x"
+    ylabel := L"y"
+    color := :inferno
+    cbar_title := L"T(\theta, r)"
+    aspect_ratio := :equal
+    xlims := (-cfg.L, cfg.L)
+    ylims := (-cfg.L, cfg.L)
+    size := (440, 400)
+
+    x_vals, y_vals, base_density
+end
+
+struct MultipleConfigurations
+    mmax::Int
+    nmax::Int
+    L::Float64
+    Nx::Int
+    Ny::Int
+    alpha::Float64
+    envelope_func::Function
+    a::Float64
+end
+
+@recipe function f(mc::MultipleConfigurations)
+    fontfamily --> "Computer Modern"
+    x_vals = range(-mc.L, mc.L, length=mc.Nx)
+    y_vals = range(-mc.L, mc.L, length=mc.Ny)
+    X = repeat(x_vals, 1, mc.Ny)
+    Y = repeat(y_vals', mc.Nx, 1)
+
+    layout := (mc.mmax+1, mc.nmax+1)
+    size := (900, 900)
+    dpi := 900
+    colorbar := true
+    right_margin := 10Plots.mm
+
+    # Flatten all heatmaps into a tuple of series
+    for m in 0:mc.mmax
+        for n in 1:(mc.nmax+1)
+            coeff_dict = Dict((m, n) => 1.0)
+            base_density = density_2D(X, Y, coeff_dict; alpha=mc.alpha, envelope_func=mc.envelope_func, a=mc.a)
+            @series begin
+                seriestype := :heatmap
+                xlabel := L"x"
+                ylabel := L"y"
+                color := :inferno
+                title := L"m=%$m, n=%$n"
+                aspect_ratio := :equal
+                colorbar := false
+                xlims := (-mc.L, mc.L)
+                ylims := (-mc.L, mc.L)
+                x_vals, y_vals, base_density
+            end
+        end
+    end
+end

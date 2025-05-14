@@ -32,7 +32,7 @@ end
 """
 Compute the weighted sum of e^(im*phi) * J_m(α_{mn}r/a).
 """
-function circular_membrane(phi, r, coeff_dict, a=1.0)
+function Tmemb(phi, r, coeff_dict, a=1.0)
     modulation = ones(size(phi))
     for ((m, n), amp) in coeff_dict
         α_mn = besseljzero(m, n)  
@@ -50,8 +50,9 @@ function density_2D(X, Y, coeff_dict; alpha=0.05, envelope_func=radial_envelope,
     phi = atan.(Y, X)
     phi = ifelse.(phi .< 0, phi .+ 2π, phi)
 
-    env = envelope_func(r, alpha)
-    memb = circular_membrane(phi, r, coeff_dict, a)
-    density_base = env .* memb
+    # env = envelope_func(r, alpha)
+    memb = Tmemb(phi, r, coeff_dict, a)
+    # density_base = env .* memb
+    density_base = memb
     return density_base
 end
