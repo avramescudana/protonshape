@@ -61,10 +61,18 @@ function compute_Tp_grid(bx_vals, by_vals, bqc, p)
     return Tp_vals
 end
 
-function cqdipole(r, b, θb, bqc, Tp, p_gbw, p_cq)
+function cqdipole(r, b, θb, bqc, Tp, p_cq)
 	term_Tp = Tp(b, θb, bqc, p_cq)
-    #TODO: remove p_gwb, Qₛ(p_gbw) is not used
-	# term_exp = 1 - exp(- p_cq.N₀ * r * r * Qₛ(p_gbw) * Qₛ(p_gbw) * term_Tp)
     term_exp = 1 - exp(- p_cq.N₀ * r * r * term_Tp)
+    return 2 * term_exp
+end
+
+"""
+Shape thickness function
+"""
+
+function shapedipole(r, b, θb, Tp_shape, p_shape)
+	term_Tp = Tp_shape(b, θb, p_shape)
+    term_exp = 1 - exp(- p_shape.N₀ * r * r * term_Tp)
     return 2 * term_exp
 end

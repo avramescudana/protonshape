@@ -2,10 +2,10 @@ using SpecialFunctions # For Bessel functions
 using Roots  # For root-finding
 
 """
-Gaussian radial envelope: exp(-alpha * r^2).
+Gaussian radial envelope: exp(-α * r^2).
 """
-function gaussenv(r, alpha=0.125)
-    return exp.(-alpha .* r.^2)
+function gaussenv(r, α=1.0)
+    return exp.(-α .* r.^2)
 end
 
 """
@@ -52,13 +52,24 @@ end
 """
 Build the thickness function Tp(phi, r) = gaussenv(r) * circmemb(phi, r).
 """
-function Tp_2D(X, Y, coeff_dict; alpha=0.05, envfunc=gaussenv, a=1.0)
+function Tp_2D(X, Y, coeff_dict; α=1.0, envfunc=gaussenv, a=1.0)
     r = sqrt.(X.^2 .+ Y.^2)
     phi = atan.(Y, X)
     phi = ifelse.(phi .< 0, phi .+ 2π, phi)
 
-    env = envfunc(r, alpha)
+    env = envfunc(r, α)
     memb = circmemb(phi, r, coeff_dict, a)
+    Tp = env .* memb # thickness function
+    return Tp
+end
+
+"""
+Shape thickness function used in the dipole cross section
+"""
+
+function Tp_shape(b, θb, p_shape)
+    env = envfunc(b, p_shape.α)
+    memb = circmemb(θb, b, p_shape.coeff_dict, p_shape.a)
     Tp = env .* memb # thickness function
     return Tp
 end

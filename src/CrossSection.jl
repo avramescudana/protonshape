@@ -13,7 +13,7 @@ using Statistics # Variance, mean
 using ProgressMeter # Progress bar
 
 """
-Parameters
+Default parameters
 """
 
 # Wavefunctions overlap parameters
@@ -65,7 +65,7 @@ params_mc = (
     θbmin = 0.0,
     θbmax = 2π,
     Δmin = 0.0,
-    Δmax = 1,
+    Δmax = 1.0,
     Δlen = 20,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
@@ -83,14 +83,19 @@ params_cq = (
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 70, # number of samples for bqc
+    Nsamples = 10, # number of samples for bqc
 )
 
 export params_cq
 
 params_shape = (
-    α = 0.05, # gaussian radial function
+    N₀ = 1.0, # normalization 
+    α = 1.0, # gaussian radial function
+    a = 1.0, # radius of the circular membrane
+    # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
 )
+
+export params_shape
 
 """
 Variables
@@ -107,18 +112,14 @@ Routines to extract coherent + incoherent dσ/dt
 include("wavefunction.jl") 
 export ϕ, ΨᵥΨ
 
+# include("shape.jl")
+# export Tp_shape
+
 include("dipole.jl") 
 export Qₛ, T, gbwdipole
 export sample_bqc, Tq, Tp, compute_Tp_grid
 
 include("diffractive.jl")
 export Agbw, Aqc, diffractive
-
-"""
-Shape functions
-"""
-
-# include("shape.jl")
-# export build_base_density_2D_general
 
 end

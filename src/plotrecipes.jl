@@ -127,7 +127,7 @@ Base.@kwdef struct SingleConfiguration
     Nx::Int
     Ny::Int
     func_type::String
-    alpha::Float64 = 0.125
+    α::Float64 = 1.0
     env_func::Function = gaussenv
     a::Float64
 end
@@ -142,7 +142,7 @@ end
     if cfg.func_type=="circmemb"
         dens = circmemb_2D(X, Y, cfg.coeff_dict; a=cfg.a)
     elseif cfg.func_type=="Tp"
-        dens = Tp_2D(X, Y, cfg.coeff_dict; alpha=cfg.alpha, envfunc=cfg.env_func, a=cfg.a)
+        dens = Tp_2D(X, Y, cfg.coeff_dict; α=cfg.α, envfunc=cfg.env_func, a=cfg.a)
     else
         error("Unknown function type: $func_type")
     end
@@ -167,7 +167,7 @@ Base.@kwdef struct MultipleConfigurations
     Nx::Int
     Ny::Int
     func_type::String
-    alpha::Float64 = 0.125
+    α::Float64 = 1.0
     env_func::Function = gaussenv
     a::Float64
 end
@@ -197,7 +197,7 @@ end
             if mc.func_type=="circmemb"
                 dens = circmemb_2D(X, Y, coeff_dict; a=mc.a)
             elseif mc.func_type=="Tp"
-                dens = Tp_2D(X, Y, coeff_dict; alpha=mc.alpha, envfunc=gaussenv, a=mc.a)
+                dens = Tp_2D(X, Y, coeff_dict; α=mc.α, envfunc=gaussenv, a=mc.a)
             else
                 error("Unknown function type: $func_type")
             end
