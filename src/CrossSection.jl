@@ -112,8 +112,8 @@ Routines to extract coherent + incoherent dσ/dt
 include("wavefunction.jl") 
 export ϕ, ΨᵥΨ
 
-# include("shape.jl")
-# export Tp_shape
+include("shape.jl")
+export Tp_shape, shapedipole
 
 include("dipole.jl") 
 export Qₛ, T, gbwdipole

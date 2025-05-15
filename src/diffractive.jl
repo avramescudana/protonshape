@@ -1,6 +1,6 @@
 include("wavefunction.jl") # Overlap of photon and vector meson wavefunctions
 include("dipole.jl") # GWB and CQ dipole models
-include("shape.jl") # Circular membrane model 
+# include("shape.jl") # Circular membrane model 
 
 """
 Main functions
@@ -20,7 +20,7 @@ function Agbw(r, b, z, Δ, p_wavefct, p_gbw)
     return Symbolics.value(prod) # convert symbolic expression to numerical for MC integral
 end
 
-function A(r, b, θb, z, Δ, Tp, p_wavefct, dip="CQ", part="real"; 
+function A(r, b, θb, z, Δ, Tp, p_wavefct, dip, part; 
             bqc=nothing, p_cq=nothing, p_shape=nothing)
     t1 = r * b
     t2 = ΨᵥΨ(r, z, "T", p_wavefct)
@@ -115,24 +115,22 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                 collect_abs2[ibq] = abs2_for_sample
             end)
         elseif dip == "shape"
-            abs2_Δi = Vector{Float64}(undef, length(Δ_range))
+            collect_abs2 = Vector{Float64}(undef, length(Δ_range))
+            collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
 
-            threaded_loop(run_threads, 1:length(Δ_range)) do i
+            threaded_loop(run_threads, 1:length(Δ_range), i -> begin
                 Δᵢ = Δ_range[i]
 
-                resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp, p_wavefct, "shape", "real"; p_shape=p_shape) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas,
-                neval = p_mc.neval, niters = p_mc.niters)
+                resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "real"; p_shape=p_shape) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
 
-                resqc_imag = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp, p_wavefct, "shape", "imag"; p_shape=p_shape) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas,
-                neval = p_mc.neval, niters = p_mc.niters)
+                resqc_imag = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "imag"; p_shape=p_shape) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
 
                 A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0 # A ∝ i e^(-iB)
 
-                abs2_Δi[i] = abs2(A_sample)
-                push!(collect_A[i], A_sample) 
-            end
+                collect_abs2[i] = abs2(A_sample)
+                push!(collect_A[i], A_sample)
+            end)
 
-            collect_abs2[ibq] = abs2_Δi
         end
 
         abs2_mean = [abs2(mean(A_samples)) for A_samples in collect_A]

@@ -52,12 +52,12 @@ end
 """
 Build the thickness function Tp(phi, r) = gaussenv(r) * circmemb(phi, r).
 """
-function Tp_2D(X, Y, coeff_dict; α=1.0, envfunc=gaussenv, a=1.0)
+function Tp_2D(X, Y, coeff_dict; α=1.0, gaussenv, a=1.0)
     r = sqrt.(X.^2 .+ Y.^2)
     phi = atan.(Y, X)
     phi = ifelse.(phi .< 0, phi .+ 2π, phi)
 
-    env = envfunc(r, α)
+    env = gaussenv(r, α)
     memb = circmemb(phi, r, coeff_dict, a)
     Tp = env .* memb # thickness function
     return Tp
@@ -68,7 +68,7 @@ Shape thickness function used in the dipole cross section
 """
 
 function Tp_shape(b, θb, p_shape)
-    env = envfunc(b, p_shape.α)
+    env = gaussenv(b, p_shape.α)
     memb = circmemb(θb, b, p_shape.coeff_dict, p_shape.a)
     Tp = env .* memb # thickness function
     return Tp
