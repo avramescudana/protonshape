@@ -121,13 +121,14 @@ end
 Plot multipe configurations for the circular membrane
 """
 
-struct SingleConfiguration
+Base.@kwdef struct SingleConfiguration
     coeff_dict::Dict{Tuple{Int,Int}, Float64}
     L::Float64
     Nx::Int
     Ny::Int
-    alpha::Float64
-    envelope_func::Function
+    func_type::String
+    alpha::Float64 = 0.125
+    env_func::Function = gaussenv
     a::Float64
 end
 
@@ -137,7 +138,14 @@ end
     X = repeat(x_vals, 1, cfg.Ny)
     Y = repeat(y_vals', cfg.Nx, 1)
 
-    base_density = density_2D(X, Y, cfg.coeff_dict; alpha=cfg.alpha, envelope_func=cfg.envelope_func, a=cfg.a)
+    # dens = circmemb_2D(X, Y, cfg.coeff_dict; a=cfg.a)
+    if cfg.func_type=="circmemb"
+        dens = circmemb_2D(X, Y, cfg.coeff_dict; a=cfg.a)
+    elseif cfg.func_type=="Tp"
+        dens = Tp_2D(X, Y, cfg.coeff_dict; alpha=cfg.alpha, envfunc=cfg.env_func, a=cfg.a)
+    else
+        error("Unknown function type: $func_type")
+    end
 
     seriestype := :heatmap
     xlabel := L"x"
@@ -149,17 +157,18 @@ end
     ylims := (-cfg.L, cfg.L)
     size := (440, 400)
 
-    x_vals, y_vals, base_density
+    x_vals, y_vals, dens
 end
 
-struct MultipleConfigurations
+Base.@kwdef struct MultipleConfigurations
     mmax::Int
     nmax::Int
     L::Float64
     Nx::Int
     Ny::Int
-    alpha::Float64
-    envelope_func::Function
+    func_type::String
+    alpha::Float64 = 0.125
+    env_func::Function = gaussenv
     a::Float64
 end
 
@@ -170,28 +179,39 @@ end
     X = repeat(x_vals, 1, mc.Ny)
     Y = repeat(y_vals', mc.Nx, 1)
 
-    layout := (mc.mmax+1, mc.nmax+1)
+    layout := (mc.mmax+1, mc.nmax)
     size := (900, 900)
     dpi := 900
-    colorbar := true
-    right_margin := 10Plots.mm
+    # colorbar := true
+    # right_margin := 10Plots.mm
+    rowgap := 0
+    colgap := 0
+    labelfontsize := 10
+    tickfontsize := 8
+    titlefontsize := 11
 
     # Flatten all heatmaps into a tuple of series
     for m in 0:mc.mmax
-        for n in 1:(mc.nmax+1)
+        for n in 1:mc.nmax
             coeff_dict = Dict((m, n) => 1.0)
-            base_density = density_2D(X, Y, coeff_dict; alpha=mc.alpha, envelope_func=mc.envelope_func, a=mc.a)
+            if mc.func_type=="circmemb"
+                dens = circmemb_2D(X, Y, coeff_dict; a=mc.a)
+            elseif mc.func_type=="Tp"
+                dens = Tp_2D(X, Y, coeff_dict; alpha=mc.alpha, envfunc=gaussenv, a=mc.a)
+            else
+                error("Unknown function type: $func_type")
+            end
             @series begin
                 seriestype := :heatmap
                 xlabel := L"x"
                 ylabel := L"y"
                 color := :inferno
-                title := L"m=%$m, n=%$n"
+                title := L"(%$m,%$n)"
                 aspect_ratio := :equal
                 colorbar := false
                 xlims := (-mc.L, mc.L)
                 ylims := (-mc.L, mc.L)
-                x_vals, y_vals, base_density
+                x_vals, y_vals, dens
             end
         end
     end

@@ -4,14 +4,14 @@ using Roots  # For root-finding
 """
 Gaussian radial envelope: exp(-alpha * r^2).
 """
-function radial_envelope(r, alpha=0.05)
+function gaussenv(r, alpha=0.125)
     return exp.(-alpha .* r.^2)
 end
 
 """
 Compute the n-th positive root of the Bessel function J_m.
 """
-function besseljzero(m, n; tol=1e-8, max_iter=100)
+function besseljzero(m, n; tol=1e-8)
     f(x) = besselj(m, x) 
     roots = []
     x_start = 0.1  
@@ -32,7 +32,7 @@ end
 """
 Compute the weighted sum of e^(im*phi) * J_m(α_{mn}r/a).
 """
-function Tmemb(phi, r, coeff_dict, a=1.0)
+function circmemb(phi, r, coeff_dict, a=1.0)
     modulation = ones(size(phi))
     for ((m, n), amp) in coeff_dict
         α_mn = besseljzero(m, n)  
@@ -41,18 +41,24 @@ function Tmemb(phi, r, coeff_dict, a=1.0)
     return modulation  
 end
 
+function circmemb_2D(X, Y, coeff_dict; a=1.0)
+    r = sqrt.(X.^2 .+ Y.^2)
+    phi = atan.(Y, X)
+    phi = ifelse.(phi .< 0, phi .+ 2π, phi)
+    memb = circmemb(phi, r, coeff_dict, a)
+    return memb
+end
+
 """
-Build the base density field as:
-   density_base = envelope(r) * circular_membrane(phi, r).
+Build the thickness function Tp(phi, r) = gaussenv(r) * circmemb(phi, r).
 """
-function density_2D(X, Y, coeff_dict; alpha=0.05, envelope_func=radial_envelope, a=1.0)
+function Tp_2D(X, Y, coeff_dict; alpha=0.05, envfunc=gaussenv, a=1.0)
     r = sqrt.(X.^2 .+ Y.^2)
     phi = atan.(Y, X)
     phi = ifelse.(phi .< 0, phi .+ 2π, phi)
 
-    # env = envelope_func(r, alpha)
-    memb = Tmemb(phi, r, coeff_dict, a)
-    # density_base = env .* memb
-    density_base = memb
-    return density_base
+    env = envfunc(r, alpha)
+    memb = circmemb(phi, r, coeff_dict, a)
+    Tp = env .* memb # thickness function
+    return Tp
 end
