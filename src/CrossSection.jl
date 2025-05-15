@@ -66,7 +66,7 @@ params_mc = (
     θbmax = 2π,
     Δmin = 0.0,
     Δmax = 1.0,
-    Δlen = 20,
+    Δlen = 10,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
 )
