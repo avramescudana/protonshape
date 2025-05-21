@@ -5,12 +5,13 @@ using Roots  # For root-finding
 Gaussian radial envelope: exp(-α * r^2).
 """
 function gaussenv(r, α=1.0)
-    return exp.(-α .* r.^2)
+    # return exp.(-α .* r.^2)
+    return exp.(-r.^2 ./ (2*α)) ./ (2*π*α)
 end
-
 """
 Compute the n-th positive root of the Bessel function J_m.
 """
+#TODO: optimize or tabulate the roots
 function besseljzero(m, n; tol=1e-8)
     f(x) = besselj(m, x) 
     roots = []
@@ -52,12 +53,12 @@ end
 """
 Build the thickness function Tp(phi, r) = gaussenv(r) * circmemb(phi, r).
 """
-function Tp_2D(X, Y, coeff_dict; α=1.0, gaussenv, a=1.0)
+function Tp_2D(X, Y, coeff_dict; α=1.0, envfunc=gaussenv, a=1.0)
     r = sqrt.(X.^2 .+ Y.^2)
     phi = atan.(Y, X)
     phi = ifelse.(phi .< 0, phi .+ 2π, phi)
 
-    env = gaussenv(r, α)
+    env = envfunc(r, α)
     memb = circmemb(phi, r, coeff_dict, a)
     Tp = env .* memb # thickness function
     return Tp

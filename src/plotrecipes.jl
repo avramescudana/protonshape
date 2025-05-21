@@ -170,6 +170,7 @@ Base.@kwdef struct MultipleConfigurations
     α::Float64 = 1.0
     env_func::Function = gaussenv
     a::Float64
+    amp::Float16 = 1.0
 end
 
 @recipe function f(mc::MultipleConfigurations)
@@ -193,7 +194,7 @@ end
     # Flatten all heatmaps into a tuple of series
     for m in 0:mc.mmax
         for n in 1:mc.nmax
-            coeff_dict = Dict((m, n) => 1.0)
+            coeff_dict = Dict((m, n) => mc.amp)
             if mc.func_type=="circmemb"
                 dens = circmemb_2D(X, Y, coeff_dict; a=mc.a)
             elseif mc.func_type=="Tp"

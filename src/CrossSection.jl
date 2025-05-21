@@ -90,8 +90,8 @@ export params_cq
 
 params_shape = (
     N₀ = 1.0, # normalization 
-    α = 1.0, # gaussian radial function
-    a = 1.0, # radius of the circular membrane
+    α = 4.0, # gaussian radial function [GeV^-2]
+    a = 1.0, # radius of the circular membrane [GeV^-1]
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
 )
 
