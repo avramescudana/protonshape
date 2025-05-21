@@ -133,6 +133,7 @@ Base.@kwdef struct SingleConfiguration
 end
 
 @recipe function f(cfg::SingleConfiguration)
+    fontfamily --> "Computer Modern"
     x_vals = range(-cfg.L, cfg.L, length=cfg.Nx)
     y_vals = range(-cfg.L, cfg.L, length=cfg.Ny)
     X = repeat(x_vals, 1, cfg.Ny)
@@ -148,8 +149,8 @@ end
     end
 
     seriestype := :heatmap
-    xlabel := L"x"
-    ylabel := L"y"
+    xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+    ylabel := L"y\;\mathrm{[GeV^{-1}]}"
     color := :inferno
     cbar_title := L"T(\theta, r)"
     aspect_ratio := :equal
@@ -204,8 +205,8 @@ end
             end
             @series begin
                 seriestype := :heatmap
-                xlabel := L"x"
-                ylabel := L"y"
+                xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+                ylabel := L"y\;\mathrm{[GeV^{-1}]}"
                 color := :inferno
                 title := L"(%$m,%$n)"
                 aspect_ratio := :equal
