@@ -76,7 +76,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             println("Incoherent cross section not implemented for GWB dipole model")
         end
         return t_range, dσdt, dσdt_mcerr
-    elseif dip == "CQ" || dip == "shape"
+    elseif dip == "CQ" || dip == "shape" || dip == "shapeamp"
         xqc = MCIntegration.Continuous(0,1)
 
         Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
@@ -130,7 +130,31 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                 collect_abs2[i] = abs2(A_sample)
                 push!(collect_A[i], A_sample)
             end)
+        elseif dip == "shapeamp"
+            collect_abs2 = [Float64[] for _ in 1:p_shape.Nsamples]
+            collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
 
+            coeff_dicts = sample_amp_dict_same_mn(p_shape)
+
+            threaded_loop(run_threads, 1:p_shape.Nsamples, iamp -> begin 
+                abs2_for_sample = Float64[]  
+
+                coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+
+                for (i, Δᵢ) in enumerate(Δ_range)
+    
+                    resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "real"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                    resqc_imag = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "imag"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                    A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
+
+                    push!(abs2_for_sample, abs2(A_sample))  
+                    push!(collect_A[i], A_sample)
+                end
+
+                collect_abs2[iamp] = abs2_for_sample
+            end)
         end
 
         abs2_mean = [abs2(mean(A_samples)) for A_samples in collect_A]

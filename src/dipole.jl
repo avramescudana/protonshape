@@ -78,3 +78,13 @@ function shapedipole(r, b, θb, Tp_shape, p_shape)
     term_exp = 1 - exp(- p_shape.N₀ * r * r * term_Tp)
     return 2 * term_exp
 end
+
+function sample_amp_dict_same_mn(p)
+    damp = Normal(0, p.σ)
+	amps = rand(damp, p.Nsamples)
+    # coeff_dict = copy(p.coeff_dict)
+    # coeff_dict[p.mn] = amps
+    dicts = [Dict(p.mn => amp) for amp in amps]
+	# return coeff_dict
+    return dicts
+end

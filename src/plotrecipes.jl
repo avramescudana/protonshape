@@ -82,7 +82,8 @@ end
     @series begin
         seriestype := :path
         color := :blue
-        label := "Coherent CQ"
+        # label := "Coherent CQ"
+        label := "Coherent"
         linewidth := 1
         # ribbon := data.dσdt_coh_err
         data.t_range, data.dσdt_coh
@@ -92,7 +93,8 @@ end
         seriestype := :path
         color := :red
         linewidth := 1
-        label := "Incoherent CQ"
+        # label := "Incoherent CQ"
+        label := "Incoherent"
         data.t_range, data.dσdt_incoh
     end
 
