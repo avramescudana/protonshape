@@ -74,7 +74,7 @@ Shape thickness function
 """
 
 function shapedipole(r, b, θb, Tp_shape, p_shape)
-	term_Tp = Tp_shape(b, θb, p_shape)
+	term_Tp = Tp_shape(b, θb, p_shape; p_shape.rotate)
     term_exp = 1 - exp(- p_shape.N₀ * r * r * term_Tp)
     return 2 * term_exp
 end

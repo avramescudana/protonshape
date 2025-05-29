@@ -53,6 +53,7 @@ struct CohIncohMCData
     dσdt_coh::Vector{Float64}
     dσdt_coh_err::Vector{Float64}
     dσdt_incoh::Vector{Float64}
+    dσdt_incoh_err::Vector{Float64}
     tcent_coh_hera::Vector{Float64}
     dσdt_coh_hera::Vector{Float64}
     Δtot_coh_hera::Vector{Float64}
@@ -84,17 +85,22 @@ end
         color := :blue
         # label := "Coherent CQ"
         label := "Coherent"
-        linewidth := 1
+        linewidth := 1.5
         # ribbon := data.dσdt_coh_err
+        ribbon := min.(data.dσdt_coh_err, data.dσdt_coh .- 1e-10)
+        # alpha := 0.25 
+        # yerror := data.dσdt_coh_err
         data.t_range, data.dσdt_coh
     end
 
     @series begin
         seriestype := :path
         color := :red
-        linewidth := 1
+        linewidth := 1.5
         # label := "Incoherent CQ"
         label := "Incoherent"
+        # ribbon := data.dσdt_incoh_err
+        ribbon := min.(data.dσdt_incoh_err, data.dσdt_incoh .- 1e-10)
         data.t_range, data.dσdt_incoh
     end
 

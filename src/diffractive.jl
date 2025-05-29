@@ -161,27 +161,56 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
         factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
 
         if diff == "coh" 
-            std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
-            error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
-            dσdt_coh = abs2_mean .* factor
-            dσdt_coh_err = error_abs2_mean .* factor
+            mean_A = [mean(A_samples) for A_samples in collect_A]
+            sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+
+            dσdt_coh = abs2.(mean_A) .* factor
+            dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
 
             return t_range, dσdt_coh, dσdt_coh_err
+
         elseif diff == "incoh"
             mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
             dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
 
-            return t_range, dσdt_incoh
+            collect_abs2_matrix = hcat(collect_abs2...)
+            mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+            dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+
+            return t_range, dσdt_incoh, dσdt_incoh_err
+
         elseif diff == "coh+incoh"
-            std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
-            error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
-            dσdt_coh = abs2_mean .* factor
-            dσdt_coh_err = error_abs2_mean .* factor
+            mean_A = [mean(A_samples) for A_samples in collect_A]
+            sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+
+            dσdt_coh = abs2.(mean_A) .* factor
+            dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
+            # dσdt_coh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
 
             mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
             dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
 
-            return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh
+            std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
+            error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
+            collect_abs2_matrix = hcat(collect_abs2...)
+            mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+            dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+
+            # Half-sample variance 
+            # collect_abs2_matrix = hcat(collect_abs2...) 
+
+            # nconf = size(collect_abs2_matrix, 2)
+            # half = div(nconf, 2)
+
+            # var_full  = [var(collect_abs2_matrix[i, :]) for i in eachindex(collect_abs2_matrix[:, 1])]
+            # var_half1 = [var(collect_abs2_matrix[i, 1:half]) for i in eachindex(collect_abs2_matrix[:, 1])]
+            # var_half2 = [var(collect_abs2_matrix[i, half+1:end]) for i in eachindex(collect_abs2_matrix[:, 1])]
+
+            # err1 = abs.(var_half1 .- var_full)
+            # err2 = abs.(var_half2 .- var_full)
+            # dσdt_incoh_err = 0.5 .* (err1 .+ err2) .* factor
+
+            return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err 
         end
     end
     

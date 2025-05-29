@@ -35,9 +35,10 @@ Compute the weighted sum of e^(im*phi) * J_m(α_{mn}r/a).
 """
 function circmemb(phi, r, coeff_dict, a=1.0)
     modulation = ones(size(phi))
+    # modulation = zeros(size(phi))
     for ((m, n), amp) in coeff_dict
         α_mn = besseljzero(m, n)  
-        modulation .+= amp .* real.(exp.(im * m .* phi) .* besselj.(m, α_mn ./ a .* r))
+        modulation .+= amp .* real.(exp.(im * m .* phi)) .* besselj.(m, α_mn ./ a .* r)
     end
     return modulation  
 end
@@ -68,9 +69,16 @@ end
 Shape thickness function used in the dipole cross section
 """
 
-function Tp_shape(b, θb, p_shape)
+function Tp_shape(b, θb, p_shape; rotate=false)
     env = gaussenv(b, p_shape.α)
-    memb = circmemb(θb, b, p_shape.coeff_dict, p_shape.a)
-    Tp = env .* memb # thickness function
+    if rotate
+        θ_shift = 2π * rand()
+        θb_rot = θb .+ θ_shift
+        θb_rot = θb_rot .% (2π)  
+        memb = circmemb(θb_rot, b, p_shape.coeff_dict, p_shape.a)
+    else
+        memb = circmemb(θb, b, p_shape.coeff_dict, p_shape.a)
+    end
+    Tp = env .* memb 
     return Tp
 end

@@ -65,7 +65,7 @@ params_mc = (
     θbmin = 0.0,
     θbmax = 2π,
     Δmin = 0.0,
-    Δmax = 2.5,
+    Δmax = 2.0,
     Δlen = 10,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
@@ -83,7 +83,7 @@ params_cq = (
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 10, # number of samples for bqc
+    Nsamples = 100, # number of samples for bqc
 )
 
 export params_cq
@@ -94,10 +94,11 @@ params_shape = (
     N₀ = 1.0, # normalization 
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
-    σ = 2.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 20, # number of samples for amp
+    σ = 10.0, # width of Gaussian distribution for amp, mean zero
+    Nsamples = 70, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     mn = (3,1), # (m,n) for the circular membrane
+    rotate = true, # random rotations in θb
 )
 
 export params_shape
@@ -107,7 +108,6 @@ Variables
 """
 
 @variables r, b, θb, z, Δ
-
 export r, b, θb, z, Δ
 
 """
