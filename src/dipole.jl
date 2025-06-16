@@ -88,3 +88,16 @@ function sample_amp_dict_same_mn(p)
 	# return coeff_dict
     return dicts
 end
+
+function sample_amp_dict_samem_multin(p)
+    damp = Normal(0, p.σ)
+    dicts = []
+    for _ in 1:p.Nsamples
+        amp_dict = Dict()
+        for n in p.nvals
+            amp_dict[(p.mn[1], n)] = rand(damp)
+        end
+        push!(dicts, amp_dict)
+    end
+    return dicts
+end

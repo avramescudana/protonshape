@@ -1,0 +1,24 @@
+name = "ProtonShape"
+uuid = "9fc63d1a-569a-4baa-96b6-53563810f80e"
+authors = ["Dana Avramescu <dana.d.avramescu@jyu.fi>"]
+version = "0.1.0"
+
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+
+[compat]
+Distributions = "0.25.120"
+MCIntegration = "0.4.2"
+ProgressMeter = "1.10.4"
+Roots = "2.2.7"
+Serialization = "1.11.0"
+SpecialFunctions = "2.5.1"
+Statistics = "1.11.1"
+Symbolics = "6.40.0"

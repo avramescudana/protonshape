@@ -1,6 +1,3 @@
-using SpecialFunctions # For Bessel functions
-using Roots  # For root-finding
-
 """
 Gaussian radial envelope: exp(-α * r^2).
 """

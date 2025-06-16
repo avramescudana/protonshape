@@ -67,7 +67,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             push!(collect_int_std, std)
         end
         
-        factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
+        factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor 
 
         if diff == "coh"
             dσdt = abs.(collect_int .* collect_int) .* factor 
@@ -134,7 +134,13 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             collect_abs2 = [Float64[] for _ in 1:p_shape.Nsamples]
             collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
 
-            coeff_dicts = sample_amp_dict_same_mn(p_shape)
+            if p_shape.type=="samemn"
+                coeff_dicts = sample_amp_dict_same_mn(p_shape)
+            elseif p_shape.type=="samem_multin"
+                coeff_dicts = sample_amp_dict_samem_multin(p_shape)
+            else
+                error("Unknown sampling type: $(p_shape.type)")
+            end
 
             threaded_loop(run_threads, 1:p_shape.Nsamples, iamp -> begin 
                 abs2_for_sample = Float64[]  
