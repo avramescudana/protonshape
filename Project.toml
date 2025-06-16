@@ -4,6 +4,8 @@ authors = ["Dana Avramescu <dana.d.avramescu@jyu.fi>"]
 version = "0.1.0"
 
 [deps]
+ClusterManagers = "34f1f09b-3a8b-5176-ab39-66d58a4d544e"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
@@ -14,6 +16,8 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [compat]
+ClusterManagers = "2.0.0"
+Distributed = "1.11.0"
 Distributions = "0.25.120"
 MCIntegration = "0.4.2"
 ProgressMeter = "1.10.4"
