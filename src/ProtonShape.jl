@@ -68,8 +68,8 @@ params_mc = (
     θbmin = 0.0,
     θbmax = 2π,
     Δmin = 0.0,
-    Δmax = 2.0,
-    Δlen = 10,
+    Δmax = 1.0,
+    Δlen = 5,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
 )
@@ -98,7 +98,7 @@ params_shape = (
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
     σ = 15.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 10, # number of samples for amp
+    Nsamples = 3, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
     # current supported modes: samemn, samem_multin
