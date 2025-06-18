@@ -196,11 +196,13 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
             dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
 
-            std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
-            error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
-            collect_abs2_matrix = hcat(collect_abs2...)
-            mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
-            dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+            # std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
+            # error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
+            # collect_abs2_matrix = hcat(collect_abs2...)
+            # mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+            # dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+
+            dσdt_incoh_err = compute_incoh_error(collect_abs2, collect_A, factor; error_method=p_mc.error_method)
 
             # Half-sample variance 
             # collect_abs2_matrix = hcat(collect_abs2...) 
@@ -280,5 +282,45 @@ function suppress_mcoutput_thread(body; redirect_output = true)
         end
     else
         return body()
+    end
+end
+
+function compute_incoh_error(collect_abs2, collect_A, factor; error_method="standard")
+    # collect_abs2: list of arrays, each array is abs2(A) for a config
+    # collect_A: list of arrays, each array is A for a config
+
+    collect_abs2_matrix = hcat(collect_abs2...)
+    nconf = size(collect_abs2_matrix, 2)
+    half = div(nconf, 2)
+
+    if error_method == "standard"
+        # Standard error of the mean
+        std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
+        error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
+        mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+        dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+        return dσdt_incoh_err
+
+    elseif error_method == "halfsample"
+        # Half-sample variance
+        var_full  = [var(collect_abs2_matrix[i, :]) for i in eachindex(collect_abs2_matrix[:, 1])]
+        var_half1 = [var(collect_abs2_matrix[i, 1:half]) for i in eachindex(collect_abs2_matrix[:, 1])]
+        var_half2 = [var(collect_abs2_matrix[i, half+1:end]) for i in eachindex(collect_abs2_matrix[:, 1])]
+        err1 = abs.(var_half1 .- var_full)
+        err2 = abs.(var_half2 .- var_full)
+        dσdt_incoh_err = 0.5 .* (err1 .+ err2) .* factor
+        return dσdt_incoh_err
+
+    elseif error_method == "jackknife"
+        # Jackknife error estimation
+        n = nconf
+        jk_means = [mean(deleteat!(collect_abs2_matrix[i, :], j)) for i in eachindex(collect_abs2_matrix[:, 1]), j in 1:n]
+        jk_mean = [mean(jk_means[i, :]) for i in eachindex(collect_abs2_matrix[:, 1])]
+        jk_var = [(n-1)/n * sum((jk_means[i, :] .- jk_mean[i]).^2) for i in eachindex(collect_abs2_matrix[:, 1])]
+        dσdt_incoh_err = sqrt.(jk_var) .* factor
+        return dσdt_incoh_err
+
+    else
+        error("Unknown error_method: $error_method")
     end
 end
