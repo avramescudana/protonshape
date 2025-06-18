@@ -3,7 +3,7 @@ using Serialization
 include("src/ProtonShape.jl")
 using .ProtonShape
 
-t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape, run_threads=true)
+t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape, run_threads=false)
 
 # Get output file from command line argument, or use default
 output_file = length(ARGS) > 0 ? ARGS[1] : "results/test.jls"
