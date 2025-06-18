@@ -35,3 +35,4 @@ new_env/
 *.jls
 *.txt
 *.log
+*.out
