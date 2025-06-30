@@ -43,7 +43,7 @@ function A(r, b, θb, z, Δ, Tp, p_wavefct, dip, part;
     end
 end
 
-function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_shape=nothing, run_threads=false)
+function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_shape=nothing, p_run=nothing)
     if dip == "GWB"
         #TODO: rewrite this part to use the same structure as CQ
         xgbw = MCIntegration.Continuous(0,1)
@@ -86,7 +86,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             collect_abs2 = [Float64[] for _ in 1:p_cq.Nsamples]
             collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
 
-            threaded_loop(run_threads, 1:p_cq.Nsamples, ibq -> begin
+            threaded_loop(p_run.run_threads, 1:p_cq.Nsamples, ibq -> begin
                 bqc_sample = sample_bqc(p_cq)  
                 abs2_for_sample = Float64[]  
 
@@ -118,7 +118,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             collect_abs2 = Vector{Float64}(undef, length(Δ_range))
             collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
 
-            threaded_loop(run_threads, 1:length(Δ_range), i -> begin
+            threaded_loop(p_run.run_threads, 1:length(Δ_range), i -> begin
                 Δᵢ = Δ_range[i]
 
                 resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "real"; p_shape=p_shape) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
@@ -131,8 +131,10 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                 push!(collect_A[i], A_sample)
             end)
         elseif dip == "shapeamp"
-            collect_abs2 = [Float64[] for _ in 1:p_shape.Nsamples]
-            collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
+            if p_run.run == "local"
+                collect_abs2 = [Float64[] for _ in 1:p_shape.Nsamples]
+                collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
+            end
 
             if p_shape.type=="samemn"
                 coeff_dicts = sample_amp_dict_same_mn(p_shape)
@@ -142,8 +144,10 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                 error("Unknown sampling type: $(p_shape.type)")
             end
 
-            threaded_loop(run_threads, 1:p_shape.Nsamples, iamp -> begin 
-                abs2_for_sample = Float64[]  
+            threaded_loop(p_run.run_threads, 1:p_shape.Nsamples, iamp -> begin 
+                if p_run.run == "local"
+                    abs2_for_sample = Float64[]  
+                end
 
                 coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
 
@@ -155,72 +159,128 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
 
                     A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
 
-                    push!(abs2_for_sample, abs2(A_sample))  
-                    push!(collect_A[i], A_sample)
+                    if p_run.run == "remote" && p_run.savefile
+                        outdir_path = p_run.savepath * p_run.outdir
+                        isdir(outdir_path) || mkpath(outdir_path)
+                        filename = joinpath(outdir_path, "A_delta$(lpad(i,4,'0'))_sample$(lpad(iamp,4,'0')).jld2")
+                        @save filename A_sample Δᵢ iamp
+                    end
+
+                    if p_run.run == "local"
+                        push!(abs2_for_sample, abs2(A_sample))  
+                        push!(collect_A[i], A_sample)
+                    end
                 end
 
-                collect_abs2[iamp] = abs2_for_sample
+                if p_run.run == "local"
+                    collect_abs2[iamp] = abs2_for_sample
+                end
             end)
         end
 
-        abs2_mean = [abs2(mean(A_samples)) for A_samples in collect_A]
-        factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
+        if p_run.run == "local"
+            abs2_mean = [abs2(mean(A_samples)) for A_samples in collect_A]
+            factor = 389.38 / (16π) # GeV^-2 = 389.38 mb, overall 1(16π) factor
 
-        if diff == "coh" 
-            mean_A = [mean(A_samples) for A_samples in collect_A]
-            sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+            if diff == "coh" 
+                mean_A = [mean(A_samples) for A_samples in collect_A]
+                sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
 
-            dσdt_coh = abs2.(mean_A) .* factor
-            dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
+                dσdt_coh = abs2.(mean_A) .* factor
+                dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
 
-            return t_range, dσdt_coh, dσdt_coh_err
+                return t_range, dσdt_coh, dσdt_coh_err
 
-        elseif diff == "incoh"
-            mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
-            dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
+            elseif diff == "incoh"
+                mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
+                dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
 
-            collect_abs2_matrix = hcat(collect_abs2...)
-            mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
-            dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+                collect_abs2_matrix = hcat(collect_abs2...)
+                mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+                dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
 
-            return t_range, dσdt_incoh, dσdt_incoh_err
+                return t_range, dσdt_incoh, dσdt_incoh_err
 
-        elseif diff == "coh+incoh"
-            mean_A = [mean(A_samples) for A_samples in collect_A]
-            sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+            elseif diff == "coh+incoh"
+                mean_A = [mean(A_samples) for A_samples in collect_A]
+                sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
 
-            dσdt_coh = abs2.(mean_A) .* factor
-            dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
-            # dσdt_coh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
+                dσdt_coh = abs2.(mean_A) .* factor
+                dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
+                # dσdt_coh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
 
-            mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
-            dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
+                mean_abs2 = [mean(abs2_for_t) for abs2_for_t in eachcol(collect_abs2)][1]
+                dσdt_incoh = (mean_abs2 -  abs2_mean) .* factor
 
-            # std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
-            # error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
-            # collect_abs2_matrix = hcat(collect_abs2...)
-            # mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
-            # dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
+                # std_A = [std(abs2.(A_samples)) for A_samples in collect_A]
+                # error_abs2_mean = [std / sqrt(length(collect_A[1])  ) for std in std_A]
+                # collect_abs2_matrix = hcat(collect_abs2...)
+                # mean_abs2_err = [std(collect_abs2_matrix[i, :]) / sqrt(length(collect_abs2_matrix[i, :])) for i in eachindex(collect_abs2_matrix[:, 1])]
+                # dσdt_incoh_err = sqrt.((mean_abs2_err .* factor) .^2 .+ (error_abs2_mean .* factor) .^2)
 
-            dσdt_incoh_err = compute_incoh_error(collect_abs2, collect_A, factor; error_method=p_mc.error_method)
+                dσdt_incoh_err = compute_incoh_error(collect_abs2, collect_A, factor; error_method=p_mc.error_method)
 
-            # Half-sample variance 
-            # collect_abs2_matrix = hcat(collect_abs2...) 
+                # Half-sample variance 
+                # collect_abs2_matrix = hcat(collect_abs2...) 
 
-            # nconf = size(collect_abs2_matrix, 2)
-            # half = div(nconf, 2)
+                # nconf = size(collect_abs2_matrix, 2)
+                # half = div(nconf, 2)
 
-            # var_full  = [var(collect_abs2_matrix[i, :]) for i in eachindex(collect_abs2_matrix[:, 1])]
-            # var_half1 = [var(collect_abs2_matrix[i, 1:half]) for i in eachindex(collect_abs2_matrix[:, 1])]
-            # var_half2 = [var(collect_abs2_matrix[i, half+1:end]) for i in eachindex(collect_abs2_matrix[:, 1])]
+                # var_full  = [var(collect_abs2_matrix[i, :]) for i in eachindex(collect_abs2_matrix[:, 1])]
+                # var_half1 = [var(collect_abs2_matrix[i, 1:half]) for i in eachindex(collect_abs2_matrix[:, 1])]
+                # var_half2 = [var(collect_abs2_matrix[i, half+1:end]) for i in eachindex(collect_abs2_matrix[:, 1])]
 
-            # err1 = abs.(var_half1 .- var_full)
-            # err2 = abs.(var_half2 .- var_full)
-            # dσdt_incoh_err = 0.5 .* (err1 .+ err2) .* factor
+                # err1 = abs.(var_half1 .- var_full)
+                # err2 = abs.(var_half2 .- var_full)
+                # dσdt_incoh_err = 0.5 .* (err1 .+ err2) .* factor
 
-            return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err 
+                return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err 
+            end
         end
     end
+
+
+
+    # elseif p_run.run == "remote"
+    #     #TODO: add all dip modes
+    #     if dip == "shapeamp"
+    #         collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
+
+    #         if p_shape.type=="samemn"
+    #             coeff_dicts = sample_amp_dict_same_mn(p_shape)
+    #         elseif p_shape.type=="samem_multin"
+    #             coeff_dicts = sample_amp_dict_samem_multin(p_shape)
+    #         else
+    #             error("Unknown sampling type: $(p_shape.type)")
+    #         end
+
+    #         for iamp in range(p_shape.Nsamples)
+    #             coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+
+    #             for (i, Δᵢ) in enumerate(Δ_range)
+    
+    #                 resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "real"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+    #                 resqc_imag = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "imag"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+    #                 A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
+
+    #                 if p_run.savefile
+    #                     outdir_path = p_run.savepath + p_run.outdir
+    #                     isdir(outdir_path) || mkpath(outdir_path)
+    #                     filename = joinpath(outdir, "A_delta$(lpad(i,4,'0'))_sample$(lpad(iamp,4,'0')).jld2")
+    #                     @save filename A_sample Δᵢ iamp
+    #                 else
+    #                     push!(collect_A[i], A_sample)
+    #                 end
+    #             end
+
+    #             if p_run.savefile == false
+    #                 return t_range, collect_A
+    #             end
+    #         end
+    #     end
+    # end
     
 end
 
@@ -323,4 +383,38 @@ function compute_incoh_error(collect_abs2, collect_A, factor; error_method="stan
     else
         error("Unknown error_method: $error_method")
     end
+end
+
+function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsamples::Int)
+    NΔ = length(Δ_range)
+    collect_A = [ComplexF64[] for _ in 1:NΔ]
+
+    for i in 1:NΔ
+        for iamp in 1:Nsamples
+            filename = joinpath(outdir, "A_delta$(lpad(i,4,'0'))_sample$(lpad(iamp,4,'0')).jld2")
+            if isfile(filename)
+                data = JLD2.load(filename)
+                A_sample = data["A_sample"]
+                push!(collect_A[i], A_sample)
+            else
+                @warn "Missing file: $filename"
+            end
+        end
+    end
+
+    factor = 389.38 / (16π)
+    t_range = Δ_range .^ 2
+
+    mean_A = [mean(A_samples) for A_samples in collect_A]
+    sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+    abs2_mean = abs2.(mean_A)
+
+    dσdt_coh = abs2_mean .* factor
+    dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
+
+    mean_abs2 = [mean(abs2.(A_samples)) for A_samples in collect_A]
+    dσdt_incoh = (mean_abs2 .- abs2_mean) .* factor
+    dσdt_incoh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
+
+    return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err
 end

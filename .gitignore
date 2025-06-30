@@ -33,6 +33,7 @@ new_env/
 
 # Results, outputs, and logs
 *.jls
+*.jld2
 *.txt
 *.log
 *.out

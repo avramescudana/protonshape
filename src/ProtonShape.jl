@@ -14,6 +14,7 @@ using ProgressMeter # Progress bar
 using Roots  # For root-finding
 using Distributed # Multi-processing on single node
 using ClusterManagers # Use by CSC for Slurm job submission
+using JLD2 # Save to Julia file
 
 """
 Default parameters
@@ -87,7 +88,7 @@ params_cq = (
     Bqc = 3.3, # [GeV^-2]
     Bq = 0.7, # [GeV^-2]
     Nq = 3, # number of constituent quarks
-    Nsamples = 100, # number of samples for bqc
+    Nsamples = 5, # number of samples for bqc
 )
 
 export params_cq
@@ -99,7 +100,7 @@ params_shape = (
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
     σ = 12.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 5, # number of samples for amp
+    Nsamples = 10, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
     # current supported modes: samemn, samem_multin
@@ -109,6 +110,18 @@ params_shape = (
 )
 
 export params_shape
+
+params_run = (
+    run = "remote", # local for running on local machine, remote for cluster
+    savefile = true,
+    run_threads = true,
+    savepath = "results/",
+    outdir = "test/",
+    # crosssec = "coh+incoh",
+    # mode = "shapeamp",
+)
+
+export params_run
 
 """
 Variables
@@ -132,6 +145,6 @@ export Qₛ, T, gbwdipole
 export sample_bqc, Tq, Tp, compute_Tp_grid
 
 include("diffractive.jl")
-export Agbw, Aqc, diffractive
+export Agbw, Aqc, diffractive, compute_cross_sections
 
 end
