@@ -10,4 +10,4 @@
 #SBATCH --mem-per-cpu=1000
 
 module load julia
-julia --project=. runshapefunctions.jl "/scratch/lappi/dana/test_sample_${SLURM_ARRAY_TASK_ID}.jls"
+julia --project=. runshapefunctions.jl $SLURM_ARRAY_TASK_ID

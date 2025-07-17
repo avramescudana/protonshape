@@ -100,7 +100,7 @@ params_shape = (
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
     σ = 12.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 10, # number of samples for amp
+    Nsamples = 1, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
     # current supported modes: samemn, samem_multin
@@ -113,9 +113,11 @@ export params_shape
 
 params_run = (
     run = "remote", # local for running on local machine, remote for cluster
+    jobtype = "array", # job type for cluster, "array" or "single"
+    arrayindex = 1, # array index for cluster job
     savefile = true,
     run_threads = true,
-    savepath = "results/",
+    savepath = "/scratch/lappi/dana/",
     outdir = "test/",
     # crosssec = "coh+incoh",
     # mode = "shapeamp",

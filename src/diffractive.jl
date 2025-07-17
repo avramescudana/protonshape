@@ -162,8 +162,16 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     if p_run.run == "remote" && p_run.savefile
                         outdir_path = p_run.savepath * p_run.outdir
                         isdir(outdir_path) || mkpath(outdir_path)
-                        filename = joinpath(outdir_path, "A_delta$(lpad(i,4,'0'))_sample$(lpad(iamp,4,'0')).jld2")
+                        if p_run.jobtype=="single"
+                            filename = joinpath(outdir_path, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
+                        elseif p_run.jobtype=="array"
+                            filename = joinpath(outdir_path, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0'))_array$(p_run.arrayindex).jld2")
+                        else
+                            error("Unknown job type: $(p_run.jobtype)")
+                        end
                         @save filename A_sample Δᵢ iamp
+                        params_file = joinpath(outdir_path, "params_used.jld2")
+                        @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
                     end
 
                     if p_run.run == "local"
