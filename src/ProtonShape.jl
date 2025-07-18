@@ -118,7 +118,7 @@ params_run = (
     savefile = true,
     run_threads = true,
     savepath = "/scratch/lappi/dana/",
-    outdir = "test/",
+    outdir = "testrandom/",
     # crosssec = "coh+incoh",
     # mode = "shapeamp",
 )
