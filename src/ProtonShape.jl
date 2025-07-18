@@ -114,9 +114,9 @@ export params_shape
 params_run = (
     run = "remote", # local for running on local machine, remote for cluster
     jobtype = "array", # job type for cluster, "array" or "single"
-    arrayindex = 1, # array index for cluster job
+    # arrayindex = 1, # array index for cluster job
     savefile = true,
-    run_threads = true,
+    run_threads = false,
     savepath = "/scratch/lappi/dana/",
     outdir = "testrandom/",
     # crosssec = "coh+incoh",

@@ -1,5 +1,5 @@
 using Serialization
-using Random
+using Random, UUIDs
 
 include("../src/ProtonShape.jl")
 using .ProtonShape
@@ -8,7 +8,8 @@ using .ProtonShape
 
 arrayindex = length(ARGS) > 0 ? parse(Int, ARGS[1]) : 1
 params_run_updated = merge(params_run, (arrayindex = arrayindex,))
-Random.seed!(12345 + arrayindex)
+# Random.seed!(12345 + arrayindex)
+Random.seed!(hash(UUIDs.uuid4()))
 
 diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape, p_run=params_run_updated)
 

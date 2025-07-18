@@ -397,8 +397,16 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
     NΔ = length(Δ_range)
     collect_A = [ComplexF64[] for _ in 1:NΔ]
 
+    if p_run.jobtype=="single"
+        Nsamples_eff = Nsamples
+    elseif p_run.jobtype=="array"
+        Nsamples_eff = 100 # Assuming 100 samples per array job #TODO: make this configurable
+    else
+        error("Unknown job type: $(p_run.jobtype)")
+    end
+
     for i in 1:NΔ
-        for iamp in 1:Nsamples
+        for iamp in 1:Nsamples_eff
             # filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
             if p_run.jobtype=="single"
                 filename = joinpath(outdir, "A_delta$(i)_sample$(iamp).jld2")
@@ -415,6 +423,8 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
                 @warn "Missing file: $filename"
             end
         end
+        # println("Δ $i: ", length(collect_A[i]), " samples loaded")
+        # println("A_samples for Δ $i: ", collect_A[i])
     end
 
     factor = 389.38 / (16π)
