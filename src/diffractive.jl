@@ -393,13 +393,20 @@ function compute_incoh_error(collect_abs2, collect_A, factor; error_method="stan
     end
 end
 
-function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsamples::Int)
+function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsamples::Int, p_run::NamedTuple)
     NΔ = length(Δ_range)
     collect_A = [ComplexF64[] for _ in 1:NΔ]
 
     for i in 1:NΔ
         for iamp in 1:Nsamples
-            filename = joinpath(outdir, "A_delta$(lpad(i,4,'0'))_sample$(lpad(iamp,4,'0')).jld2")
+            # filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
+            if p_run.jobtype=="single"
+                filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
+            elseif p_run.jobtype=="array"
+                filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0'))_array$(p_run.arrayindex).jld2")
+            else
+                error("Unknown job type: $(p_run.jobtype)")
+            end
             if isfile(filename)
                 data = JLD2.load(filename)
                 A_sample = data["A_sample"]
