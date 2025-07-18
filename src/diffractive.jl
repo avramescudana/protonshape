@@ -163,9 +163,9 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                         outdir_path = p_run.savepath * p_run.outdir
                         isdir(outdir_path) || mkpath(outdir_path)
                         if p_run.jobtype=="single"
-                            filename = joinpath(outdir_path, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
+                            filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
                         elseif p_run.jobtype=="array"
-                            filename = joinpath(outdir_path, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0'))_array$(p_run.arrayindex).jld2")
+                            filename = joinpath(outdir_path, "A_delta$(i)_sample$(p_run.arrayindex).jld2")
                         else
                             error("Unknown job type: $(p_run.jobtype)")
                         end
@@ -401,9 +401,9 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
         for iamp in 1:Nsamples
             # filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
             if p_run.jobtype=="single"
-                filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
+                filename = joinpath(outdir, "A_delta$(i)_sample$(iamp).jld2")
             elseif p_run.jobtype=="array"
-                filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0'))_array$(p_run.arrayindex).jld2")
+                filename = joinpath(outdir, "A_delta$(i)_sample$(p_run.arrayindex).jld2")
             else
                 error("Unknown job type: $(p_run.jobtype)")
             end
