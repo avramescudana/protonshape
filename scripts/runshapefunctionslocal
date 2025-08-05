@@ -1,4 +1,4 @@
-nconfigs=2
+nconfigs=5
 for i in $(seq 1 $nconfigs); do
     julia --project=. scripts/runshapefunctions.jl $i $nconfigs
 done

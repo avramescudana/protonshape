@@ -70,7 +70,7 @@ params_mc = (
     θbmax = 2π,
     Δmin = 0.0,
     Δmax = 10.0,
-    Δlen = 5,
+    Δlen = 3,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
     error_method = "jackknife", # error type for incoh, "standard", "halfsample" or "jackknife"
@@ -113,12 +113,12 @@ export params_shape
 
 params_run = (
     run = "remote", # local for running on local machine, remote for cluster
-    jobtype = "single", # job type for cluster, "array" or "single"
+    jobtype = "array", # job type for cluster, "array" or "single"
     # arrayindex = 1, # array index for cluster job
     savefile = true,
     run_threads = false,
     savepath = "results/",
-    outdir = "testrandomlocal/",
+    outdir = "testrandomlocal4/",
     # crosssec = "coh+incoh",
     # mode = "shapeamp",
     amp_dict = Dict{Tuple{Int,Int},Float64}(), # dictionary with "(m,n) => amp" for the circular membrane
