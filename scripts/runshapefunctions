@@ -10,4 +10,4 @@
 #SBATCH --mem-per-cpu=4000
 
 module load julia
-julia --project=. scripts/runshapefunctions.jl $SLURM_ARRAY_TASK_ID
+julia --project=. scripts/runshapefunctions.jl $SLURM_ARRAY_TASK_ID 100

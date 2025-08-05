@@ -70,7 +70,7 @@ params_mc = (
     θbmax = 2π,
     Δmin = 0.0,
     Δmax = 10.0,
-    Δlen = 20,
+    Δlen = 5,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
     error_method = "jackknife", # error type for incoh, "standard", "halfsample" or "jackknife"
@@ -113,14 +113,15 @@ export params_shape
 
 params_run = (
     run = "remote", # local for running on local machine, remote for cluster
-    jobtype = "array", # job type for cluster, "array" or "single"
+    jobtype = "single", # job type for cluster, "array" or "single"
     # arrayindex = 1, # array index for cluster job
     savefile = true,
     run_threads = false,
-    savepath = "/scratch/lappi/dana/",
-    outdir = "testrandom/",
+    savepath = "results/",
+    outdir = "testrandomlocal/",
     # crosssec = "coh+incoh",
     # mode = "shapeamp",
+    amp_dict = Dict{Tuple{Int,Int},Float64}(), # dictionary with "(m,n) => amp" for the circular membrane
 )
 
 export params_run
@@ -140,7 +141,7 @@ include("wavefunction.jl")
 export ϕ, ΨᵥΨ
 
 include("shape.jl")
-export Tp_shape, shapedipole, sample_amp_dict_same_mn, gaussenv, circmemb_2D, Tp_2D
+export Tp_shape, shapedipole, sample_amp_dict_same_mn, sample_amp_dict_samem_multin, gaussenv, circmemb_2D, Tp_2D
 
 include("dipole.jl") 
 export Qₛ, T, gbwdipole

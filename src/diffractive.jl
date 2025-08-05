@@ -134,21 +134,39 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             if p_run.run == "local"
                 collect_abs2 = [Float64[] for _ in 1:p_shape.Nsamples]
                 collect_A = [ComplexF64[] for _ in 1:length(Δ_range)]
-            end
 
-            if p_shape.type=="samemn"
-                coeff_dicts = sample_amp_dict_same_mn(p_shape)
-            elseif p_shape.type=="samem_multin"
-                coeff_dicts = sample_amp_dict_samem_multin(p_shape)
-            else
-                error("Unknown sampling type: $(p_shape.type)")
-            end
-
-            threaded_loop(p_run.run_threads, 1:p_shape.Nsamples, iamp -> begin 
-                if p_run.run == "local"
-                    abs2_for_sample = Float64[]  
+                if p_shape.type=="samemn"
+                    coeff_dicts = sample_amp_dict_same_mn(p_shape)
+                elseif p_shape.type=="samem_multin"
+                    coeff_dicts = sample_amp_dict_samem_multin(p_shape)
+                else
+                    error("Unknown sampling type: $(p_shape.type)")
                 end
 
+                threaded_loop(p_run.run_threads, 1:p_shape.Nsamples, iamp -> begin 
+                    if p_run.run == "local"
+                        abs2_for_sample = Float64[]  
+                    end
+
+                    coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+
+                    for (i, Δᵢ) in enumerate(Δ_range)
+        
+                        resqc_re = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "real"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                        resqc_imag = MCIntegration.integrate((xqc, c) -> A(xqc[1] * p_mc.rmax, xqc[2] * p_mc.bmax, xqc[3] * p_mc.θbmax, xqc[4], Δᵢ, Tp_shape, p_wavefct, "shape", "imag"; p_shape=coeff_dict_amp) * (p_mc.rmax^2) * (p_mc.bmax^2); var = xqc, dof = 4, solver = :vegas, neval = p_mc.neval, niters = p_mc.niters)
+
+                        A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
+
+                        push!(abs2_for_sample, abs2(A_sample))  
+                        push!(collect_A[i], A_sample)
+                    end
+
+                    collect_abs2[iamp] = abs2_for_sample
+                end)
+            elseif p_run.run == "remote"
+                coeff_dicts = p_run.amp_dict
+                iamp = p_run.arrayindex
                 coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
 
                 for (i, Δᵢ) in enumerate(Δ_range)
@@ -159,31 +177,20 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
 
                     A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
 
-                    if p_run.run == "remote" && p_run.savefile
-                        outdir_path = p_run.savepath * p_run.outdir
-                        isdir(outdir_path) || mkpath(outdir_path)
-                        if p_run.jobtype=="single"
-                            filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
-                        elseif p_run.jobtype=="array"
-                            filename = joinpath(outdir_path, "A_delta$(i)_sample$(p_run.arrayindex).jld2")
-                        else
-                            error("Unknown job type: $(p_run.jobtype)")
-                        end
-                        @save filename A_sample Δᵢ iamp
-                        params_file = joinpath(outdir_path, "params_used.jld2")
-                        @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
+                    outdir_path = p_run.savepath * p_run.outdir
+                    isdir(outdir_path) || mkpath(outdir_path)
+                    if p_run.jobtype=="single"
+                        filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
+                    elseif p_run.jobtype=="array"
+                        filename = joinpath(outdir_path, "A_delta$(i)_sample$(p_run.arrayindex).jld2")
+                    else
+                        error("Unknown job type: $(p_run.jobtype)")
                     end
-
-                    if p_run.run == "local"
-                        push!(abs2_for_sample, abs2(A_sample))  
-                        push!(collect_A[i], A_sample)
-                    end
+                    @save filename A_sample Δᵢ iamp
+                    params_file = joinpath(outdir_path, "params_used.jld2")
+                    @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
                 end
-
-                if p_run.run == "local"
-                    collect_abs2[iamp] = abs2_for_sample
-                end
-            end)
+            end
         end
 
         if p_run.run == "local"

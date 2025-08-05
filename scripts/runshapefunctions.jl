@@ -4,17 +4,20 @@ using Random, UUIDs
 include("../src/ProtonShape.jl")
 using .ProtonShape
 
-# t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape, run_threads=false)
-
 arrayindex = length(ARGS) > 0 ? parse(Int, ARGS[1]) : 1
-params_run_updated = merge(params_run, (arrayindex = arrayindex,))
-# Random.seed!(12345 + arrayindex)
-Random.seed!(hash(UUIDs.uuid4()))
+nconfigs = length(ARGS) > 0 ? parse(Int, ARGS[2]) : 1
+params_run_array = merge(params_run, (arrayindex = arrayindex,))
 
-diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape, p_run=params_run_updated)
+params_shape_eff = merge(params_shape, (Nsamples = nconfigs,))
 
-# Get output file from command line argument, or use default
-# output_file = length(ARGS) > 0 ? ARGS[1] : "results/test.jls"
-# save_data = (; t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err,
-    # params_wavefct, params_gbw, params_cq, params_mc)
-# serialize(output_file, save_data)
+if params_shape.type=="samemn"
+    coeff_dicts = sample_amp_dict_same_mn(params_shape_eff)
+elseif params_shape.type=="samem_multin"
+    coeff_dicts = sample_amp_dict_samem_multin(params_shape_eff)
+else
+    error("Unknown sampling type: $(p_shape.type)")
+end
+
+params_run_eff = merge(params_run_array, (amp_dict = coeff_dicts,))
+
+diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc; p_shape=params_shape_eff, p_run=params_run_eff)
