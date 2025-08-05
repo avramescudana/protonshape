@@ -96,7 +96,7 @@ export params_cq
 ħc = 0.197326 # [GeV*fm], convert GeV^-1 to fm
 
 params_shape = (
-    N₀ = 1.5, # normalization 
+    N₀ = 1.0, # normalization 
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
     σ = 12.0, # width of Gaussian distribution for amp, mean zero

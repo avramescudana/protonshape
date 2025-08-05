@@ -6,9 +6,14 @@ using .ProtonShape
 
 arrayindex = length(ARGS) > 0 ? parse(Int, ARGS[1]) : 1
 nconfigs = length(ARGS) > 0 ? parse(Int, ARGS[2]) : 1
-params_run_array = merge(params_run, (arrayindex = arrayindex,))
+sigma_idx  = length(ARGS) > 2 ? parse(Int, ARGS[3]) : 1
 
-params_shape_eff = merge(params_shape, (Nsamples = nconfigs,))
+σ_values = range(1.0, stop=20.0, length=10)
+σ_val = σ_values[sigma_idx]
+
+params_shape_eff = merge(params_shape, (Nsamples = nconfigs, σ = σ_val,))
+outdir_name = "sigma_$(σ_val)"
+params_run_array = merge(params_run, (arrayindex = arrayindex, outdir = outdir_name))
 
 if params_shape.type=="samemn"
     coeff_dicts = sample_amp_dict_same_mn(params_shape_eff)
