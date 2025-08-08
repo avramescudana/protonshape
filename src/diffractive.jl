@@ -167,7 +167,6 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             elseif p_run.run == "remote"
                 coeff_dicts = p_run.amp_dict
                 iamp = p_run.arrayindex
-                println("iamp=$iamp")
                 coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
 
                 for (i, Δᵢ) in enumerate(Δ_range)
@@ -181,6 +180,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     outdir_path = p_run.savepath * p_run.outdir
                     isdir(outdir_path) || mkpath(outdir_path)
                     filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
+                    @info "Saved A_sample" filename=filename Δ=Δᵢ iamp=iamp
                     # if p_run.jobtype=="single"
                         # filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
                     # elseif p_run.jobtype=="array"
@@ -190,7 +190,10 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     # end
                     @save filename A_sample Δᵢ iamp
                     params_file = joinpath(outdir_path, "params_used.jld2")
-                    @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
+                    # @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
+                    open(params_file, "w") do io
+                        serialize(io, (diff, dip, p_wavefct, p_mc, p_gbw, p_cq, p_shape, p_run))
+                    end
                 end
             end
         end
@@ -402,29 +405,55 @@ function compute_incoh_error(collect_abs2, collect_A, factor; error_method="stan
     end
 end
 
+# function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsamples::Int, p_run::NamedTuple, nconfigs::Int, multiple_configs::Int)
+#     NΔ = length(Δ_range)
+#     collect_A = [ComplexF64[] for _ in 1:NΔ]
+
+#     config_dirs = multiple_configs == 1 ? filter(f -> isdir(joinpath(outdir, f)), readdir(outdir)) : [""]
+    
+#     for config in config_dirs
+#         config_path = multiple_configs == 1 ? joinpath(outdir, config) : outdir
+
+#         for i in 1:NΔ
+#             for iamp in 1:nconfigs
+#                 filename = joinpath(config_path, "A_delta$(i)_sample$(iamp).jld2")
+
+#                 if isfile(filename)
+#                     data = JLD2.load(filename)
+#                     A_sample = data["A_sample"]
+#                     push!(collect_A[i], A_sample)
+#                 else
+#                     @warn "Missing file: $filename"
+#                 end
+#             end
+#         end
+#     end
+
+#     factor = 389.38 / (16π)
+#     t_range = Δ_range .^ 2
+
+#     mean_A = [mean(A_samples) for A_samples in collect_A]
+#     sem_A = [std(A_samples) / sqrt(length(A_samples)) for A_samples in collect_A]
+#     abs2_mean = abs2.(mean_A)
+
+#     dσdt_coh = abs2_mean .* factor
+#     dσdt_coh_err = abs.(2 .* mean_A .* sem_A .* factor)
+
+#     mean_abs2 = [mean(abs2.(A_samples)) for A_samples in collect_A]
+#     dσdt_incoh = (mean_abs2 .- abs2_mean) .* factor
+#     dσdt_incoh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
+
+#     return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err
+# end
+
 function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsamples::Int, p_run::NamedTuple, nconfigs::Int)
     NΔ = length(Δ_range)
     collect_A = [ComplexF64[] for _ in 1:NΔ]
 
-    # if p_run.jobtype=="single"
-    #     Nsamples_eff = Nsamples
-    # elseif p_run.jobtype=="array"
-    #     Nsamples_eff = 100 # Assuming 100 samples per array job #TODO: make this configurable
-    # else
-    #     error("Unknown job type: $(p_run.jobtype)")
-    # end
-
     for i in 1:NΔ
         for iamp in 1:nconfigs
             filename = joinpath(outdir, "A_delta$(i)_sample$(iamp).jld2")
-            # # filename = joinpath(outdir, "A_delta$(lpad(i,2,'0'))_sample$(lpad(iamp,3,'0')).jld2")
-            # if p_run.jobtype=="single"
-            #     filename = joinpath(outdir, "A_delta$(i)_sample$(iamp).jld2")
-            # elseif p_run.jobtype=="array"
-            #     filename = joinpath(outdir, "A_delta$(i)_sample$(p_run.arrayindex).jld2")
-            # else
-            #     error("Unknown job type: $(p_run.jobtype)")
-            # end
+
             if isfile(filename)
                 data = JLD2.load(filename)
                 A_sample = data["A_sample"]
@@ -433,8 +462,6 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
                 @warn "Missing file: $filename"
             end
         end
-        # println("Δ $i: ", length(collect_A[i]), " samples loaded")
-        # println("A_samples for Δ $i: ", collect_A[i])
     end
 
     factor = 389.38 / (16π)
@@ -450,6 +477,8 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
     mean_abs2 = [mean(abs2.(A_samples)) for A_samples in collect_A]
     dσdt_incoh = (mean_abs2 .- abs2_mean) .* factor
     dσdt_incoh_err = [std(abs2.(A_samples)) / sqrt(length(A_samples)) * factor for A_samples in collect_A]
+
+    println("Computed cross sections for path: $outdir")
 
     return t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err
 end

@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_array
-#SBATCH --output=/scratch/lappi/dana/runshapefunctions_array_out_%A_%a.txt
-#SBATCH --error=/scratch/lappi/dana/runshapefunctions_array_err_%A_%a.txt
-#SBATCH --array=1-2000
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_array_out_%A_%a.txt
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_array_err_%A_%a.txt
+#SBATCH --array=1-100
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=12:00:00
@@ -10,10 +10,4 @@
 #SBATCH --mem-per-cpu=4000
 
 module load julia
-# julia --project=. scripts/runshapefunctions.jl $SLURM_ARRAY_TASK_ID 100
-let
-    job_id=$SLURM_ARRAY_TASK_ID
-    sigma_index=$(( (job_id - 1) / 200 + 1 ))     
-    config_index=$(( (job_id - 1) % 200 + 1 ))  
-    julia --project=. scripts/runshapefunctions.jl $config_index 200 $sigma_index
-fi
+julia --project=. scripts/runshapefunctions.jl $SLURM_ARRAY_TASK_ID 100

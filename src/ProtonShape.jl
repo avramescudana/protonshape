@@ -15,6 +15,7 @@ using Roots  # For root-finding
 using Distributed # Multi-processing on single node
 using ClusterManagers # Use by CSC for Slurm job submission
 using JLD2 # Save to Julia file
+using Serialization # Save to Julia file
 
 """
 Default parameters
@@ -70,7 +71,8 @@ params_mc = (
     θbmax = 2π,
     Δmin = 0.0,
     Δmax = 10.0,
-    Δlen = 3,
+    Δlen = 20,
+    # Δlen = 4,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
     error_method = "jackknife", # error type for incoh, "standard", "halfsample" or "jackknife"
@@ -117,8 +119,9 @@ params_run = (
     # arrayindex = 1, # array index for cluster job
     savefile = true,
     run_threads = false,
-    savepath = "results/",
-    outdir = "testrandomlocal4/",
+    # savepath = "results/",
+    savepath = "/scratch/lappi/dana/protonshape_out/mn_31/",
+    outdir = "random/",
     # crosssec = "coh+incoh",
     # mode = "shapeamp",
     amp_dict = Dict{Tuple{Int,Int},Float64}(), # dictionary with "(m,n) => amp" for the circular membrane
