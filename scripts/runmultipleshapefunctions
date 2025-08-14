@@ -1,0 +1,38 @@
+#!/bin/bash
+#SBATCH --job-name=runshapefunctions_array
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_array_out_%A_%a.txt
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_array_err_%A_%a.txt
+#SBATCH --account=lappi
+#SBATCH --partition=small
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --mem-per-cpu=4000
+
+module load julia
+
+if [ "$#" -lt 5 ]; then
+    echo "Usage: sbatch runmultipleshapefunctions m nmax \"sigma_list\" savepath nconfigs"
+    exit 1
+fi
+
+m=$1
+nmax=$2
+sigma_values=($3)   
+savepath=$4
+nconfigs=$5
+config_index=$SLURM_ARRAY_TASK_ID
+
+echo "SLURM_ARRAY_TASK_ID: $config_index"
+echo "m: $m"
+echo "nmax: $nmax"
+echo "sigma_values: ${sigma_values[@]}"
+echo "savepath: $savepath"
+echo "nconfigs: $nconfigs"
+
+julia --project=. scripts/runshapefunctions.jl \
+    "$config_index" \
+    "$nconfigs" \
+    "$m" \
+    "$nmax" \
+    "$savepath" \
+    "${sigma_values[@]}"

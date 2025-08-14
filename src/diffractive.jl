@@ -177,6 +177,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
 
                     A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
 
+                    isdir(p_run.savepath) || mkpath(p_run.savepath)
                     outdir_path = p_run.savepath * p_run.outdir
                     isdir(outdir_path) || mkpath(outdir_path)
                     filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
