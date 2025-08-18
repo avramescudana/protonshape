@@ -20,6 +20,7 @@ nmax=$2
 sigma_values=($3)   
 savepath=$4
 nconfigs=$5
+randomseed=$(date +%s%N) # random seed based on current date and time
 config_index=$SLURM_ARRAY_TASK_ID
 
 echo "SLURM_ARRAY_TASK_ID: $config_index"
@@ -28,10 +29,12 @@ echo "nmax: $nmax"
 echo "sigma_values: ${sigma_values[@]}"
 echo "savepath: $savepath"
 echo "nconfigs: $nconfigs"
+echo "randomseed: $randomseed"
 
 julia --project=. scripts/runshapefunctions.jl \
     "$config_index" \
     "$nconfigs" \
+    "$randomseed" \
     "$m" \
     "$nmax" \
     "$savepath" \

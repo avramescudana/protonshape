@@ -1,4 +1,5 @@
 # include("shape.jl") # Circular membrane model 
+using Random
 
 function Qₛ(p)
 	return (p.x₀ / p.xₚ) ^ (p.Λ/2) # [GeV²]
@@ -92,9 +93,9 @@ end
 function sample_amp_dict_samem_multin(p)
     damp = Normal(0, p.σ)
     dicts = []
-    for _ in 1:p.Nsamples
+    for nsample in 1:p.Nsamples
         amp_dict = Dict()
-        for n in p.nvals
+        for n in 1:p.nvals
             amp_dict[(p.mn[1], n)] = rand(damp)
         end
         push!(dicts, amp_dict)

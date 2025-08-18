@@ -178,7 +178,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     A_sample = (-resqc_imag[1][1] + resqc_re[1][1] * im) / 2.0  # A ∝ i e^(-iB)
 
                     isdir(p_run.savepath) || mkpath(p_run.savepath)
-                    outdir_path = p_run.savepath * p_run.outdir
+                    outdir_path = p_run.savepath * "/" * p_run.outdir
                     isdir(outdir_path) || mkpath(outdir_path)
                     filename = joinpath(outdir_path, "A_delta$(i)_config$(iamp).jld2")
                     @info "Saved A_sample" filename=filename Δ=Δᵢ iamp=iamp
@@ -190,8 +190,8 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     #     error("Unknown job type: $(p_run.jobtype)")
                     # end
                     @save filename A_sample Δᵢ iamp
-                    params_file = joinpath(outdir_path, "params_config$(iamp).jld2")
-                    @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
+                    # params_file = joinpath(outdir_path, "params_config$(iamp).jld2")
+                    # @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
                     # open(params_file, "w") do io
                     #     serialize(io, (diff, dip, p_wavefct, p_mc, p_gbw, p_cq, p_shape, p_run))
                     # end

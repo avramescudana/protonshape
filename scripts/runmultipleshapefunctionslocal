@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [ "$#" -lt 5 ]; then
+    echo "Usage: bash runmultipleshapefunctions m nmax \"sigma_list\" savepath nconfigs"
+    exit 1
+fi
+
+m=$1
+nmax=$2
+sigma_values=($3)
+savepath=$4
+nconfigs=$5
+randomseed=$(date +%s%N) # random seed based on current date and time
+
+for ((config_index=1; config_index<=nconfigs; config_index++)); do
+    echo "Running config_index: $config_index"
+    julia --project=. scripts/runshapefunctions.jl \
+        "$config_index" \
+        "$nconfigs" \
+        "$randomseed" \
+        "$m" \
+        "$nmax" \
+        "$savepath" \
+        "${sigma_values[@]}"
+done
