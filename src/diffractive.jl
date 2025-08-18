@@ -180,7 +180,7 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     isdir(p_run.savepath) || mkpath(p_run.savepath)
                     outdir_path = p_run.savepath * p_run.outdir
                     isdir(outdir_path) || mkpath(outdir_path)
-                    filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
+                    filename = joinpath(outdir_path, "A_delta$(i)_config$(iamp).jld2")
                     @info "Saved A_sample" filename=filename Δ=Δᵢ iamp=iamp
                     # if p_run.jobtype=="single"
                         # filename = joinpath(outdir_path, "A_delta$(i)_sample$(iamp).jld2")
@@ -190,11 +190,11 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
                     #     error("Unknown job type: $(p_run.jobtype)")
                     # end
                     @save filename A_sample Δᵢ iamp
-                    params_file = joinpath(outdir_path, "params_used.jld2")
-                    # @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
-                    open(params_file, "w") do io
-                        serialize(io, (diff, dip, p_wavefct, p_mc, p_gbw, p_cq, p_shape, p_run))
-                    end
+                    params_file = joinpath(outdir_path, "params_config$(iamp).jld2")
+                    @save params_file diff dip p_wavefct p_mc p_gbw p_cq p_shape p_run
+                    # open(params_file, "w") do io
+                    #     serialize(io, (diff, dip, p_wavefct, p_mc, p_gbw, p_cq, p_shape, p_run))
+                    # end
                 end
             end
         end
@@ -453,7 +453,7 @@ function compute_cross_sections(outdir::String, Δ_range::AbstractVector, Nsampl
 
     for i in 1:NΔ
         for iamp in 1:nconfigs
-            filename = joinpath(outdir, "A_delta$(i)_sample$(iamp).jld2")
+            filename = joinpath(outdir, "A_delta$(i)_config$(iamp).jld2")
 
             if isfile(filename)
                 data = JLD2.load(filename)
