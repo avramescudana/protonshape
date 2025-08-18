@@ -14,17 +14,17 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
         for subdir in sort(subdirs)
             println("Processing subdirectory: $subdir")
             subdir_path = joinpath(params_path, subdir)
-            params_file = joinpath(subdir_path, "params_used.jld2")
+            params_file = joinpath(subdir_path, "params.jld2")
 
-            # params = JLD2.load(params_file)
-            # params_mc = params["p_mc"]
-            # params_shape = params["p_shape"]
-            # params_run = params["p_run"]
-            loaded = open(params_file, "r") do io
-                deserialize(io)
-            end
+            params = JLD2.load(params_file)
+            params_mc = params["params_mc"]
+            params_shape = params["params_shape_eff"]
+            params_run = params["params_run_sigma"]
+            # loaded = open(params_file, "r") do io
+            #     deserialize(io)
+            # end
 
-            (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
+            # (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
 
             Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
             Nsamples = params_shape.Nsamples
@@ -36,16 +36,19 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
             @save results_file t_range dσdt_coh dσdt_coh_err dσdt_incoh dσdt_incoh_err
         end
     else
-        params_file = joinpath(params_path, "params_used.jld2")
-        # params = JLD2.load(params_file)
+        params_file = joinpath(params_path, "params.jld2")
+        params = JLD2.load(params_file)
         # params_mc = params["p_mc"]
         # params_shape = params["p_shape"]
         # params_run = params["p_run"]
-        loaded = open(params_file, "r") do io
-            deserialize(io)
-        end
+        params_mc = params["params_mc"]
+        params_shape = params["params_shape_eff"]
+        params_run = params["params_run_sigma"]
+        # loaded = open(params_file, "r") do io
+        #     deserialize(io)
+        # end
 
-        (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
+        # (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
 
         Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
         Nsamples = params_shape.Nsamples
