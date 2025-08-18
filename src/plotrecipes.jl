@@ -226,3 +226,127 @@ end
         end
     end
 end
+
+Base.@kwdef struct SuperposedModesPlot
+    mmax::Int
+    nmax_list::Vector{Int}   # List of nmax values for columns
+    L::Float64
+    Nx::Int
+    Ny::Int
+    func_type::String
+    α::Float64
+    env_func::Function
+    a::Float64
+    amp::Float64
+end
+
+@recipe function f(sp::SuperposedModesPlot)
+    fontfamily --> "Computer Modern"
+    x_vals = range(-sp.L, sp.L, length=sp.Nx)
+    y_vals = range(-sp.L, sp.L, length=sp.Ny)
+    X = repeat(x_vals, 1, sp.Ny)
+    Y = repeat(y_vals', sp.Nx, 1)
+
+    # Now: rows = m, columns = nmax
+    layout := (sp.mmax+1, length(sp.nmax_list))
+    size := (900, 900)
+    dpi := 900
+    rowgap := 0
+    colgap := 0
+    labelfontsize := 10
+    tickfontsize := 8
+    titlefontsize := 11
+
+    for m in 0:sp.mmax
+        for (col, nmax) in enumerate(sp.nmax_list)
+            coeff_dict = Dict((m, n) => sp.amp for n in 1:nmax)
+            if sp.func_type == "circmemb"
+                dens = circmemb_2D(X, Y, coeff_dict; a=sp.a)
+            elseif sp.func_type == "Tp"
+                dens = Tp_2D(X, Y, coeff_dict; α=sp.α, envfunc=sp.env_func, a=sp.a)
+            else
+                error("Unknown function type: $(sp.func_type)")
+            end
+            @series begin
+                seriestype := :heatmap
+                xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+                ylabel := L"y\;\mathrm{[GeV^{-1}]}"
+                color := :inferno
+                # title := L"(%$m,%$nmax)"
+                # title := L"" * join(["(%$m,%$n)" for n in 1:nmax], " + ")
+                labelstr = join(["(" * string(m) * "," * string(n) * ")" for n in 1:nmax], " + ")
+                title := LaTeXString(labelstr)
+                aspect_ratio := :equal
+                colorbar := false
+                xlims := (-sp.L, sp.L)
+                ylims := (-sp.L, sp.L)
+                x_vals, y_vals, dens
+            end
+        end
+    end
+end
+
+Base.@kwdef struct SampledSuperposedModesPlot
+    m_list::Vector{Int}
+    nmax_list::Vector{Int}
+    L::Float64
+    Nx::Int
+    Ny::Int
+    func_type::String
+    α::Float64
+    env_func::Function
+    a::Float64
+    σ::Float64
+    params_shape_base::NamedTuple
+end
+
+@recipe function f(sp::SampledSuperposedModesPlot)
+    fontfamily --> "Computer Modern"
+    x_vals = range(-sp.L, sp.L, length=sp.Nx)
+    y_vals = range(-sp.L, sp.L, length=sp.Ny)
+    X = repeat(x_vals, 1, sp.Ny)
+    Y = repeat(y_vals', sp.Nx, 1)
+
+    layout := (length(sp.m_list), length(sp.nmax_list))
+    size := (900, 900)
+    dpi := 900
+    rowgap := 0
+    colgap := 0
+    labelfontsize := 10
+    tickfontsize := 8
+    titlefontsize := 11
+
+    for (row, m) in enumerate(sp.m_list)
+        for (col, nmax) in enumerate(sp.nmax_list)
+            # Set up params_shape for this panel, including σ
+            params_shape = merge(sp.params_shape_base, (
+                mn = (m, 1),
+                nvals = nmax,
+                σ = sp.σ,
+            ))
+            amps_vec = sample_amp_dict_samem_multin(params_shape)
+            full_dict = amps_vec[1]
+            coeff_dict_panel = Dict((m, n) => full_dict[(m, n)] for n in 1:nmax)
+            if sp.func_type == "circmemb"
+                dens = circmemb_2D(X, Y, coeff_dict_panel; a=sp.a)
+            elseif sp.func_type == "Tp"
+                dens = Tp_2D(X, Y, coeff_dict_panel; α=sp.α, envfunc=sp.env_func, a=sp.a)
+            else
+                error("Unknown function type: $(sp.func_type)")
+            end
+            @series begin
+                seriestype := :heatmap
+                xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+                ylabel := L"y\;\mathrm{[GeV^{-1}]}"
+                color := :inferno
+                labelstr = join(["(" * string(m) * "," * string(n) * ")" for n in 1:nmax], " + ")
+                title := LaTeXString(labelstr)
+                aspect_ratio := :equal
+                colorbar := false
+                xlims := (-sp.L, sp.L)
+                ylims := (-sp.L, sp.L)
+                x_vals, y_vals, dens
+            end
+        end
+    end
+end
