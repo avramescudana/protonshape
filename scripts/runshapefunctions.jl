@@ -7,7 +7,7 @@ using .ProtonShape
 
 arrayindex = parse(Int, ARGS[1])
 nconfigs   = parse(Int, ARGS[2])
-randomseed = parse(Int, ARGS[3])  
+randomseed = parse(Int64, ARGS[3])  
 m          = parse(Int, ARGS[4])
 nmax       = parse(Int, ARGS[5])
 savepath   = ARGS[6]
