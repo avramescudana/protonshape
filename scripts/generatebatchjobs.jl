@@ -1,30 +1,40 @@
 using Printf
 using Serialization
 
-include("../params/paramstest.jl")
+if length(ARGS) < 1
+    error("Usage: julia generatebatchjobs.jl path/to/paramsfile.jl")
+end
+
+params_file = ARGS[1]
+
+params_basename = split(basename(params_file), ".")[1] 
+output_file = joinpath("scripts/sbatchjobs", "submitalljobs$(params_basename).sh")
+
+include(params_file)
+
 using .SimulationParams
 
-m        = SimulationParams.m
-nmax     = SimulationParams.nmax
-sigma_list = SimulationParams.sigma_list
-savepath = SimulationParams.savepath
-nconfigs = SimulationParams.nconfigs
-
-# Turn Julia values into a space-separated string for bash
-sigma_values_str = join(sigma_list, " ")
-
-open("scripts/sbatchjobs/submitalljobsparamstest.sh", "w") do io
+open(output_file, "w") do io
     write(io, "#!/bin/bash\n\n")
 
-    for config_index in 1:nconfigs
-        randomseed = rand(Int64)
+    for (set_index, params) in enumerate(SimulationParams.param_sets)
+        m          = params.m
+        nmax       = params.nmax
+        sigma_list = params.sigma_list
+        savepath   = params.savepath
+        nconfigs   = params.nconfigs
 
-        sbatch_command = """
-sbatch <<EOF
+        sigma_values_str = join(sigma_list, " ")
+
+        for config_index in 1:nconfigs
+            randomseed = rand(Int64)
+
+            sbatch_command =
+                "sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=runshapefunctions_$config_index
-#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$config_index.out
-#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$config_index.err
+#SBATCH --job-name=runshapefunctions_$(set_index)_\$config_index
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_\$config_index.out
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_\$config_index.err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=24:00:00
@@ -33,19 +43,18 @@ sbatch <<EOF
 module load julia
 
 julia --project=. scripts/runshapefunctions.jl \\
-    $config_index \\
+    \$config_index \\
     $nconfigs \\
     $randomseed \\
     $m \\
     $nmax \\
-    "$savepath" \\
+    \"$savepath\" \\
     $sigma_values_str
 EOF
-
-"""
-
-        write(io, sbatch_command)
+"
+            write(io, sbatch_command)
+        end
     end
 end
 
-println("Generated sbatch jobs in submitalljobsparamstest.sh")
+println("Generated sbatch jobs in $output_file")
