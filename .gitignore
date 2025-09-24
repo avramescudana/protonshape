@@ -30,6 +30,7 @@ new_env/
 
 # Plots
 *.png
+*.pdf
 
 # Results, outputs, and logs
 *.jls

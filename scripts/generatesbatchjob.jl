@@ -7,7 +7,7 @@ open("submitalljobs.sh", "w") do io
     write(io, "#!/bin/bash\n\n")
 
     for config_index in 1:nconfigs
-        randomseed = Int64(rand(UInt64))  
+        randomseed = rand(Int64)
         sigma_values_str = join(sigma_list, ",")  
 
         sbatch_command = """
