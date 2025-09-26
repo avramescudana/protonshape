@@ -23,6 +23,7 @@ open(output_file, "w") do io
         sigma_list = params.sigma_list
         savepath   = params.savepath
         nconfigs   = params.nconfigs
+        paramset = params.paramset
 
         sigma_values_str = join(sigma_list, " ")
 
@@ -32,9 +33,9 @@ open(output_file, "w") do io
             sbatch_command =
                 "sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=runshapefunctions_$(set_index)_\$config_index
-#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_\$config_index.out
-#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_\$config_index.err
+#SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_\$config_index
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_\$config_index.out
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_\$config_index.err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=24:00:00
@@ -43,12 +44,12 @@ open(output_file, "w") do io
 module load julia
 
 julia --project=. scripts/runshapefunctions.jl \\
-    \$config_index \\
+    $config_index \\
     $nconfigs \\
     $randomseed \\
     $m \\
     $nmax \\
-    \"$savepath\" \\
+    $savepath \\
     $sigma_values_str
 EOF
 "
