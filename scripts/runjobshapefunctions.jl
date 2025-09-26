@@ -19,6 +19,6 @@ function runshapefunction(config_index, randomseed)
 end
 
 for config_index in 1:SimulationParams.nconfigs
-    randomseed = rand(Int)  
+    # randomseed = rand(Int)  
     runshapefunction(config_index, randomseed)
 end
