@@ -160,6 +160,15 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
 
                         push!(abs2_for_sample, abs2(A_sample))  
                         push!(collect_A[i], A_sample)
+
+                        if p_run.savefile
+                           isdir(p_run.savepath) || mkpath(p_run.savepath)
+                            outdir_path = p_run.savepath * "/" * p_run.outdir
+                            isdir(outdir_path) || mkpath(outdir_path)
+                            filename = joinpath(outdir_path, "A_delta$(i)_config$(iamp).jld2")
+                            @info "Saved A_sample" filename=filename Δ=Δᵢ iamp=iamp
+                            @save filename A_sample Δᵢ iamp
+                        end
                     end
 
                     collect_abs2[iamp] = abs2_for_sample
