@@ -140,6 +140,7 @@ Base.@kwdef struct SingleConfiguration
     α::Float64 = 1.0
     env_func::Function = gaussenv
     a::Float64
+    checktp::Bool = false
 end
 
 @recipe function f(cfg::SingleConfiguration)
@@ -156,6 +157,10 @@ end
         dens = Tp_2D(X, Y, cfg.coeff_dict; α=cfg.α, envfunc=cfg.env_func, a=cfg.a)
     else
         error("Unknown function type: $func_type")
+    end
+
+    if cfg.checktp
+        dens = max.(dens, 0.0)
     end
 
     seriestype := :heatmap
