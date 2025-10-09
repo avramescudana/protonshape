@@ -12,7 +12,7 @@ struct CoherentMCData
 end
 
 
-@recipe function f(data::CoherentMCData; custom_label="GBW")
+@recipe function f(data::CoherentMCData; custom_label="GBW", hera=true)
     fontfamily --> "Computer Modern"
     framestyle --> :box
     legendfontsize --> 10
@@ -29,22 +29,24 @@ end
     yticks --> :auto
     yaxis --> :log10
 
+    if hera
+        @series begin
+            seriestype := :scatter
+            yerror := data.Δtot_hera
+            label := "Coherent H1"
+            color := :blue
+            marker := :utriangle
+            markersize := 3.5
+            data.tcent_hera, data.dσcoh_hera
+        end
+    end
+
     @series begin
         seriestype := :path
         label := custom_label
         linewidth := 1
         ribbon := data.dσdt_err
         data.t_range, data.dσdt
-    end
-
-    @series begin
-        seriestype := :scatter
-        yerror := data.Δtot_hera
-        label := "Coherent H1"
-        color := :blue
-        marker := :utriangle
-        markersize := 3.5
-        data.tcent_hera, data.dσcoh_hera
     end
 end
 

@@ -53,7 +53,8 @@ julia --project=. scripts/runshapefunctions.jl \\
     $m \\
     $nmax \\
     $savepath \\
-    $sigma_values_str
+    $sigma \
+    $N₀
 EOF
 "
                     write(io, sbatch_command)

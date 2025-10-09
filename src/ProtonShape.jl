@@ -103,8 +103,8 @@ params_shape = (
     N₀ = 1.0, # normalization 
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
-    σ = 0.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 5, # number of samples for amp
+    σ = 5.0, # width of Gaussian distribution for amp, mean zero
+    Nsamples = 10, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
     # type = "samemn", # type of sampling for the circular membrane
@@ -112,13 +112,15 @@ params_shape = (
     mn = (3,1), # (m,n) for the circular membrane
     nvals = 3, # number of n values for the circular membrane
     rotate = true, # random rotations in θb
+    checktp = false, # check if Tp becomes negative
+    replacetp = false, # replace negative Tp with zero
 )
 
 export params_shape
 
 params_run = (
     run = "remote", # local for running on local machine, remote for cluster
-    jobtype = "array", # job type for cluster, "array" or "single"
+    jobtype = "single", # job type for cluster, "array" or "single"
     # arrayindex = 1, # array index for cluster job
     savefile = true,
     run_threads = false,

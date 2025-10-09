@@ -75,8 +75,16 @@ Shape thickness function
 """
 
 function shapedipole(r, b, θb, Tp_shape, p_shape)
-	term_Tp = Tp_shape(b, θb, p_shape; p_shape.rotate)
-    term_exp = 1 - exp(- p_shape.N₀ * r * r * term_Tp)
+    Tp_val = Tp_shape(b, θb, p_shape; p_shape.rotate)
+    if p_shape.checktp
+        if Tp_val < 0
+            # @warn "Tp<0 at b=$b, θb=$θb."
+            if p_shape.replacetp
+                Tp_val = 0.0
+            end
+        end
+    end
+    term_exp = 1 - exp(- p_shape.N₀ * r * r * Tp_val)
     return 2 * term_exp
 end
 
