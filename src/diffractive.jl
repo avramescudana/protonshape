@@ -43,12 +43,16 @@ function A(r, b, θb, z, Δ, Tp, p_wavefct, dip, part;
     end
 end
 
-function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_shape=nothing, p_run=nothing)
+function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_shape=nothing, p_run=nothing, Δ_values=nothing)
     if dip == "GWB"
         #TODO: rewrite this part to use the same structure as CQ
         xgbw = MCIntegration.Continuous(0,1)
 
-        Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
+        if Δ_values === nothing
+            Δ_range = range(p_mc.Δmin, stop=p_mc.Δmax, length=p_mc.Δlen)
+        else
+            Δ_range = Δ_values
+        end
         t_range = Δ_range .* Δ_range 
         
         collect_int, collect_int_std = [], []
