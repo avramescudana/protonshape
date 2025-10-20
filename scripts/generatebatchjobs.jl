@@ -25,6 +25,7 @@ open(output_file, "w") do io
         nconfigs   = params.nconfigs
         N₀_list    = params.N₀_list
         paramset = params.paramset
+        find_norm  = params.find_norm
 
         sigma_values_str = join(sigma_list, " ")
 
@@ -53,7 +54,8 @@ julia --project=. scripts/runshapefunctions.jl \\
     $m \\
     $nmax \\
     $savepath \\
-    $sigma \
+    $sigma \\
+    $find_norm \\
     $N₀
 EOF
 "

@@ -134,6 +134,19 @@ params_run = (
 
 export params_run
 
+params_norm = (
+    Δ₀ = 0.0, # fixed Δ value for normalization
+    start = 1.0, # N₀ starting point for adaptive search
+    step_factor=1.6, # step factor for adaptive search
+    min_N₀=1e-3, # minimum N₀ for adaptive search
+    max_N₀=1e2, # maximum N₀ for adaptive search
+    max_expansions=20, # maximum number of expansions for adaptive search
+    unique_outdirs=false, # whether to use unique output directories for each run
+    brent_reltol=1e-3 # relative tolerance for Brent's method
+)
+
+export params_norm
+
 """
 Variables
 """
@@ -157,5 +170,8 @@ export sample_bqc, Tq, Tp, compute_Tp_grid
 
 include("diffractive.jl")
 export Agbw, Aqc, diffractive, compute_cross_sections
+
+include("normalization.jl")
+export chisq_for_N₀_at_Δ₀, find_best_N₀_at_Δ₀_adaptive
 
 end
