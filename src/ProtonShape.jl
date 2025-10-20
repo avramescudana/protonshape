@@ -104,7 +104,7 @@ params_shape = (
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
     σ = 5.0, # width of Gaussian distribution for amp, mean zero
-    Nsamples = 10, # number of samples for amp
+    Nsamples = 1, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
     # type = "samemn", # type of sampling for the circular membrane
