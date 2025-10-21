@@ -137,12 +137,13 @@ export params_run
 params_norm = (
     Δ₀ = 0.0, # fixed Δ value for normalization
     start = 1.0, # N₀ starting point for adaptive search
-    step_factor=1.6, # step factor for adaptive search
-    min_N₀=1e-3, # minimum N₀ for adaptive search
-    max_N₀=1e2, # maximum N₀ for adaptive search
-    max_expansions=20, # maximum number of expansions for adaptive search
-    unique_outdirs=false, # whether to use unique output directories for each run
-    brent_reltol=1e-3 # relative tolerance for Brent's method
+    step_factor = 1.6, # step factor for adaptive search
+    min_N₀ = 1e-3, # minimum N₀ for adaptive search
+    max_N₀ = 1e2, # maximum N₀ for adaptive search
+    max_expansions = 20, # maximum number of expansions for adaptive search
+    unique_outdirs = false, # whether to use unique output directories for each run
+    brent_reltol = 1e-3 # relative tolerance for Brent's method
+    coherent_data_path = "/users/davrames/protonshape/data/jspi_coh_hera.txt", # path to coherent data for normalization
 )
 
 export params_norm
