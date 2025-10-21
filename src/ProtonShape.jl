@@ -142,7 +142,7 @@ params_norm = (
     max_N₀ = 1e2, # maximum N₀ for adaptive search
     max_expansions = 20, # maximum number of expansions for adaptive search
     unique_outdirs = false, # whether to use unique output directories for each run
-    brent_reltol = 1e-3 # relative tolerance for Brent's method
+    brent_reltol = 1e-3, # relative tolerance for Brent's method
     coherent_data_path = "/users/davrames/protonshape/data/jspi_coh_hera.txt", # path to coherent data for normalization
 )
 

@@ -1,1 +1,0 @@
-Total iterations * blocks 160:  31%|█▉    |  ETA: 0:00:01 (10.29 ms/it)Total iterations * blocks 160:  62%|███▊  |  ETA: 0:00:01 (10.06 ms/it)Total iterations * blocks 160:  94%|█████▋|  ETA: 0:00:00 (10.17 ms/it)Total iterations * blocks 160: 100%|██████| Time: 0:00:01 (10.14 ms/it)
