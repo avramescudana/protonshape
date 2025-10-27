@@ -52,7 +52,21 @@ coeff_dicts =
         error("Unknown sampling type: $(params_shape_eff.type)")
     end
 
-outdir_name = "sigma_$(sigma)_N0_$(N₀)"
+params_shape_eff_best_N₀ = params_shape_eff
+
+if find_norm
+    best_N₀ = find_best_N₀_at_Δ₀_adaptive(
+        params_shape_eff,
+        params_wavefct,
+        params_mc,
+        params_run_eff_base,   # use base run params while searching
+        params_norm
+    )
+    println("find_norm -> best_N₀ = ", best_N₀)
+    params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
+end
+
+outdir_name = "sigma_$(sigma)_N0_$(params_shape_eff_best_N₀.N₀)"
 params_run_sigma = merge(params_run_eff_base, (
     outdir = outdir_name,
     amp_dict = coeff_dicts,
@@ -60,12 +74,6 @@ params_run_sigma = merge(params_run_eff_base, (
 
 diff = "coh+incoh"
 dip = "shapeamp"
-
-if find_norm
-    best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_sigma, params_norm)
-
-    params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
-end
 
 diffractive(diff, dip, params_wavefct, params_mc; p_shape=params_shape_eff_best_N₀, p_run=params_run_sigma)
 
