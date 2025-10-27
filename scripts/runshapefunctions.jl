@@ -2,7 +2,10 @@ using Serialization
 using Random, UUIDs
 using JLD2
 
-include("../src/ProtonShape.jl")
+import Pkg
+Pkg.activate("/users/davrames/protonshape")
+
+include("/users/davrames/protonshape/src/ProtonShape.jl")
 using .ProtonShape
 
 arrayindex = parse(Int, ARGS[1])
@@ -61,19 +64,13 @@ dip = "shapeamp"
 if find_norm
     best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_sigma, params_norm)
 
-    params_shape_eff = merge(params_shape, (
-        Nsamples = nconfigs,
-        mn = (m, 1),        # initial n will be overwritten below
-        nvals = nmax,
-        N₀ = best_N₀,
-        σ = sigma,
-    ))
+    params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
 end
 
-diffractive(diff, dip, params_wavefct, params_mc; p_shape=params_shape_eff, p_run=params_run_sigma)
+diffractive(diff, dip, params_wavefct, params_mc; p_shape=params_shape_eff_best_N₀, p_run=params_run_sigma)
 
 if arrayindex == 1
     outdir_path = params_run_sigma.savepath * "/" * params_run_sigma.outdir
     params_file = joinpath(outdir_path, "params.jld2")
-    @save params_file diff dip params_wavefct params_mc params_shape_eff params_run_sigma
+    @save params_file diff dip params_wavefct params_mc params_shape_eff_best_N₀ params_run_sigma
 end

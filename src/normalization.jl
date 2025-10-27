@@ -44,12 +44,12 @@ function optimal_norm_N0(N₀_values, params_shape, params_wavefct, params_mc, p
 end
 
 # Compute χ² at Δ=0 for a given N₀
-function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, params_run, coherent_data_path; unique_outdirs=false, Δ₀=0.0)
+function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, params_run, params_norm; Δ₀=0.0)
     try
         params_shape_norm = merge(params_shape, (N₀ = N₀,))
         params_mc_Δ0 = merge(params_mc, (Δmin = Δ₀, Δmax = Δ₀, Δlen = 1))
 
-        p_run_iter = if unique_outdirs
+        p_run_iter = if params_norm.unique_outdirs
             outdir = joinpath(params_run.outdir, "N0_$(round(N₀; digits=6))")
             merge(params_run, (outdir = outdir,))
         else
@@ -64,7 +64,7 @@ function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, 
         Nsamples = params_shape.Nsamples
         t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(compute_dir, [Δ₀], Nsamples, p_run_iter, Nsamples)
 
-        tcent_coh_hera, dσdt_coh_hera, Δtot_coh_hera = read_coherent_data(coherent_data_path)
+        tcent_coh_hera, dσdt_coh_hera, Δtot_coh_hera = read_coherent_data(params_norm.coherent_data_path)
 
         model_val = dσdt_coh[1]
         data_val  = dσdt_coh_hera[1]
@@ -83,7 +83,7 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
 
     cache = Dict{Float64,Float64}()
     obj(N) = get!(cache, N) do
-        chisq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, coherent_data_path; unique_outdirs=params_norm.unique_outdirs, Δ₀=params_norm.Δ₀)
+        chisq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
     end
 
     x₀ = clamp(params_norm.start, params_norm.min_N₀, params_norm.max_N₀)
@@ -118,7 +118,14 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
     end
 
     a = min(xₗ, xᵣ); b = max(xₗ, xᵣ)
-    if a == b; a = max(params_norm.min_N₀, x₀/params_norm.step_factor); b = min(params_norm.max_N₀, x₀*params_norm.step_factor); end
+    if a == b
+        a = max(params_norm.min_N₀, x₀/params_norm.step_factor)
+        b = min(params_norm.max_N₀, x₀*params_norm.step_factor)
+    end
+    println("Optimizing in interval: a = $a, b = $b")
+    if a >= b
+        error("x_lower must be less than x_upper: a = $a, b = $b")
+    end
 
     result = optimize(obj, a, b, Brent(); rel_tol=params_norm.brent_reltol)
     best_N₀ = Optim.minimizer(result)
