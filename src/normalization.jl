@@ -46,7 +46,7 @@ end
 # Compute χ² at Δ=0 for a given N₀
 function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, params_run, params_norm; Δ₀=0.0)
     try
-        params_shape_norm = merge(params_shape, (N₀ = N₀,))
+        params_shape_norm = merge(params_shape, (N₀ = N₀, Nsamples = params_norm.nsamples_norm))
         params_mc_Δ0 = merge(params_mc, (Δmin = Δ₀, Δmax = Δ₀, Δlen = 1))
 
         p_run_iter = if params_norm.unique_outdirs
@@ -61,7 +61,7 @@ function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, 
         compute_dir = joinpath(p_run_iter.savepath, p_run_iter.outdir)
         endswith(compute_dir, "/") && (compute_dir = compute_dir[1:end-1])
 
-        Nsamples = params_shape.Nsamples
+        Nsamples = params_norm.nsamples_norm
         t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(compute_dir, [Δ₀], Nsamples, p_run_iter, Nsamples)
 
         tcent_coh_hera, dσdt_coh_hera, Δtot_coh_hera = read_coherent_data(params_norm.coherent_data_path)
