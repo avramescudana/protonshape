@@ -73,8 +73,9 @@ function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, 
         χsq = ((model_val - data_val) / data_err)^2
 
         return isfinite(χsq) ? χsq : Inf
-    catch
-        return Inf
+    catch e
+        @warn "chisq_for_N₀_at_Δ₀ failed" N₀=N₀ exception=e
+        rethrow(e) 
     end
 end
 
@@ -82,23 +83,34 @@ end
 function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_mc, params_run, params_norm)
 
     cache = Dict{Float64,Float64}()
+
+    # Obj prints every evaluation so you can trace what the optimizer is asking for.
     obj(N) = get!(cache, N) do
-        chisq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
+        println("[eval] χ² at N₀ = $(N)")
+        f = chisq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
+        println("[eval] result: χ²($(N)) = $(f)")
+        f
     end
 
     x₀ = clamp(params_norm.start, params_norm.min_N₀, params_norm.max_N₀)
+    println("[start] x₀ = $(x₀) (clamped to [$(params_norm.min_N₀), $(params_norm.max_N₀)])")
     f₀ = obj(x₀)
+    println("[start] χ²(x₀) = $(f₀)")
 
     xᵣ, fᵣ = x₀, f₀
     n = 0
     while n < params_norm.max_expansions
         xtry = clamp(xᵣ * params_norm.step_factor, params_norm.min_N₀, params_norm.max_N₀)
-        if xtry == xᵣ; break; end
+        if xtry == xᵣ; println("[up] no further expansion (xtry == xr = $xᵣ)"); break; end
+        println("[up] trying x = $(xtry) (factor=$(params_norm.step_factor))")
         ftry = obj(xtry)
+        println("[up] χ²($(xtry)) = $(ftry)")
         if ftry < fᵣ
+            println("[up] improved: $(fᵣ) → $(ftry); updating xr")
             xᵣ, fᵣ = xtry, ftry
             n += 1
         else
+            println("[up] no improvement; stop upward expansion")
             break
         end
     end
@@ -107,12 +119,16 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
     n = 0
     while n < params_norm.max_expansions
         xtry = clamp(xₗ / params_norm.step_factor, params_norm.min_N₀, params_norm.max_N₀)
-        if xtry == xₗ; break; end
+        if xtry == xₗ; println("[down] no further expansion (xtry == xl = $xₗ)"); break; end
+        println("[down] trying x = $(xtry) (factor=1/$(params_norm.step_factor))")
         ftry = obj(xtry)
+        println("[down] χ²($(xtry)) = $(ftry)")
         if ftry < fₗ
+            println("[down] improved: $(fₗ) → $(ftry); updating xl")
             xₗ, fₗ = xtry, ftry
             n += 1
         else
+            println("[down] no improvement; stop downward expansion")
             break
         end
     end
@@ -121,16 +137,23 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
     if a == b
         a = max(params_norm.min_N₀, x₀/params_norm.step_factor)
         b = min(params_norm.max_N₀, x₀*params_norm.step_factor)
+        println("[bracket] a==b fallback → a=$(a), b=$(b)")
     end
-    println("Optimizing in interval: a = $a, b = $b")
+    println("[bracket] optimizing in interval: a = $(a), b = $(b)")
     if a >= b
         error("x_lower must be less than x_upper: a = $a, b = $b")
+    end
+
+    println("[cache] evaluations so far: $(length(cache)) entries")
+    for (k,v) in sort(collect(cache); by = x->x[1])
+        println("  cache: N₀=$(k) → χ²=$(v)")
     end
 
     result = optimize(obj, a, b, Brent(); rel_tol=params_norm.brent_reltol)
     best_N₀ = Optim.minimizer(result)
     best_χsq = Optim.minimum(result)
 
-    # return best_N₀, best_χsq, (a,b), cache
+    println("[result] best N₀ = $(best_N₀) with χ² = $(best_χsq)")
+
      return best_N₀
 end

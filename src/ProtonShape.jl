@@ -103,7 +103,7 @@ params_shape = (
     N₀ = 1.0, # normalization 
     α = 4.0, # gaussian radial function [GeV^-2]
     a = √8, # radius of the circular membrane [GeV^-1]
-    σ = 5.0, # width of Gaussian distribution for amp, mean zero
+    σ = 0.0, # width of Gaussian distribution for amp, mean zero
     Nsamples = 1, # number of samples for amp
     # coeff_dict = Dict(), # dictionary with "(m,n) => amp" for the circular membrane
     type = "samem_multin", # type of sampling for the circular membrane
@@ -137,13 +137,15 @@ export params_run
 params_norm = (
     Δ₀ = 0.0, # fixed Δ value for normalization
     start = 1.0, # N₀ starting point for adaptive search
-    step_factor = 1.6, # step factor for adaptive search
+    step_factor = 1.0, # step factor for adaptive search
     min_N₀ = 0.001, # minimum N₀ for adaptive search
     max_N₀ = 100, # maximum N₀ for adaptive search
     max_expansions = 20, # maximum number of expansions for adaptive search
     unique_outdirs = false, # whether to use unique output directories for each run
     brent_reltol = 1e-3, # relative tolerance for Brent's method
-    coherent_data_path = "/users/davrames/protonshape/data/jspi_coh_hera.txt", # path to coherent data for normalization
+    # coherent_data_path = "/users/davrames/protonshape/data/jpsi_coh_hera.txt", # path to coherent data for normalization
+    coherent_data_path = "/Users/dana/Work/protonshape/data/jpsi_coh_hera.txt", # path to coherent data for normalization
+    nsamples_norm = 2, 
 )
 
 export params_norm
@@ -174,5 +176,8 @@ export Agbw, Aqc, diffractive, compute_cross_sections
 
 include("normalization.jl")
 export chisq_for_N₀_at_Δ₀, find_best_N₀_at_Δ₀_adaptive
+
+include("data.jl")
+export read_coherent_data
 
 end
