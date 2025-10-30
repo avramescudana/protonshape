@@ -1,78 +1,41 @@
 using Printf
 using Serialization
-using Random
 
 if length(ARGS) < 1
-    error("Usage: julia generatebatchjobs.jl path/to/paramsfile.jl [njobsmax]")
+    error("Usage: julia generatebatchjobs.jl path/to/paramsfile.jl")
 end
 
 params_file = ARGS[1]
-njobs_max = length(ARGS) >= 2 ? parse(Int, ARGS[2]) : 300
-if njobs_max <= 0
-    error("njobsmax must be positive")
-end
 
 params_basename = split(basename(params_file), ".")[1] 
+output_file = joinpath("scripts/sbatchjobs", "submitalljobs$(params_basename).sh")
 
 include(params_file)
+
 using .SimulationParams
 
-outdir = joinpath("scripts", "sbatchjobs")
-if !isdir(outdir)
-    mkpath(outdir)
-end
+open(output_file, "w") do io
+    write(io, "#!/bin/bash\n\n")
 
-generated_files = String[]
+    for (set_index, params) in enumerate(SimulationParams.param_sets)
+        m          = params.m
+        nmax       = params.nmax
+        sigma_list = params.sigma_list
+        savepath   = params.savepath
+        nconfigs   = params.nconfigs
+        N₀_list    = params.N₀_list
+        paramset = params.paramset
+        find_norm  = params.find_norm
 
-for (set_index, params) in enumerate(SimulationParams.param_sets)
-    m          = params.m
-    nmax       = params.nmax
-    sigma_list = params.sigma_list
-    savepath   = params.savepath
-    nconfigs   = params.nconfigs
-    N₀_list    = params.N₀_list
-    paramset   = params.paramset
-    find_norm  = get(params, :find_norm, false)
+        sigma_values_str = join(sigma_list, " ")
 
-    Ns = length(sigma_list)
-    Nn0 = length(N₀_list)
-    Nc = nconfigs
+        for sigma in sigma_list
+            for N₀ in N₀_list
+                for config_index in 1:nconfigs
+                    randomseed = rand(Int64)
 
-    total_jobs = Ns * Nn0 * Nc
-    if total_jobs == 0
-        @printf("Skipping param set %d (%s): no jobs\n", set_index, paramset)
-        continue
-    end
-
-    files_count = min(njobs_max, total_jobs)
-    jobs_per_file = ceil(Int, total_jobs / files_count)
-
-    # Map linear job index -> (sigi, n0i, config_index)
-    function job_indices_from_linear(j)
-        t = j - 1
-        cfg = (t % Nc) + 1
-        t ÷= Nc
-        n0i = (t % Nn0) + 1
-        t ÷= Nn0
-        sigi = t + 1
-        return sigi, n0i, cfg
-    end
-
-    for file_index in 1:files_count
-        start_j = (file_index - 1) * jobs_per_file + 1
-        end_j = min(total_jobs, file_index * jobs_per_file)
-
-        output_file = joinpath(outdir, "submitalljobs_$(params_basename)_set$(set_index)_part$(file_index).sh")
-        open(output_file, "w") do io
-            write(io, "#!/bin/bash\n\n")
-            for j in start_j:end_j
-                sigi, n0i, config_index = job_indices_from_linear(j)
-                sigma = sigma_list[sigi]
-                N₀ = N₀_list[n0i]
-                randomseed = rand(Int64)
-
-                sbatch_command =
-                    "sbatch <<EOF
+                    sbatch_command =
+                        "sbatch <<EOF
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_$config_index
 #SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$config_index.out
@@ -96,14 +59,11 @@ julia --project=. scripts/runshapefunctions.jl \\
     $N₀ 
 EOF
 "
-                write(io, sbatch_command)
+                    write(io, sbatch_command)
+                end
             end
         end
-        push!(generated_files, output_file)
     end
 end
 
-println("Generated $(length(generated_files)) sbatch job files:")
-for f in generated_files
-    println("  ", f)
-end
+println("Generated sbatch jobs in $output_file")
