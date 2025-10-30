@@ -8,6 +8,18 @@ Pkg.activate("/users/davrames/protonshape")
 include("/users/davrames/protonshape/src/ProtonShape.jl")
 using .ProtonShape
 
+arrayindex = parse(Int, ARGS[1])
+nconfigs   = parse(Int, ARGS[2])
+randomseed = parse(Int64, ARGS[3])  
+m          = parse(Int, ARGS[4])
+nmax       = parse(Int, ARGS[5])
+savepath   = ARGS[6]
+sigma      = parse(Float64, ARGS[7])
+find_norm  = parse(Bool, ARGS[8])
+N₀         = parse(Float64, ARGS[9])
+paramset   = length(ARGS) >= 10 ? ARGS[10] : "default_paramset"
+mode       = length(ARGS) >= 11 ? ARGS[11] : "run"
+
 # Apply per-savepath overrides if present (written by generatebatchjobs.jl)
 override_file = joinpath(savepath, "params_override.jl2")
 if isfile(override_file)
@@ -25,18 +37,6 @@ if isfile(override_file)
         end
     end
 end
-
-arrayindex = parse(Int, ARGS[1])
-nconfigs   = parse(Int, ARGS[2])
-randomseed = parse(Int64, ARGS[3])  
-m          = parse(Int, ARGS[4])
-nmax       = parse(Int, ARGS[5])
-savepath   = ARGS[6]
-sigma      = parse(Float64, ARGS[7])
-find_norm  = parse(Bool, ARGS[8])
-N₀         = parse(Float64, ARGS[9])
-paramset   = length(ARGS) >= 10 ? ARGS[10] : "default_paramset"
-mode       = length(ARGS) >= 11 ? ARGS[11] : "run"
 
 println("arrayindex = ", arrayindex)
 println("nconfigs   = ", nconfigs)

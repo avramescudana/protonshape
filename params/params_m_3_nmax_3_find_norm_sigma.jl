@@ -10,7 +10,7 @@ const param_sets = [
         nconfigs = 5,
         find_norm = true,
         N₀_list = [0.6], # Placeholder, not used when find_norm=true
-        nsamples_norm = 20,
+        nsamples_norm = 1,
     ),
 ]
 
