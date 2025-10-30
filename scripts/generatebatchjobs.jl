@@ -28,6 +28,17 @@ open(output_file, "w") do io
         find_norm  = params.find_norm
         nsamples_norm = get(params, :nsamples_norm, 20)
 
+        # Write per-savepath override file if user provided overrides in the param-set
+        overrides = get(params, :overrides, nothing)
+        if overrides !== nothing
+            mkpath(savepath)  # ensure dir exists on shared FS
+            override_file = joinpath(savepath, "params_override.jl2")
+            open(override_file, "w") do f
+                # Create a Julia file that defines params_override as a NamedTuple
+                write(f, "const params_override = $(repr(overrides))\n")
+            end
+        end
+
         sigma_values_str = join(sigma_list, " ")
 
         for sigma in sigma_list

@@ -8,6 +8,24 @@ Pkg.activate("/users/davrames/protonshape")
 include("/users/davrames/protonshape/src/ProtonShape.jl")
 using .ProtonShape
 
+# Apply per-savepath overrides if present (written by generatebatchjobs.jl)
+override_file = joinpath(savepath, "params_override.jl2")
+if isfile(override_file)
+    include(override_file)  
+    if isdefined(Main, :params_override)
+        for (k, v) in pairs(params_override)   
+            if isdefined(ProtonShape, k)
+                base = getfield(ProtonShape, k)
+                merged = merge(base, v)         
+                @info "Applying override for $(k)"
+                @eval Main $(k) = $merged
+            else
+                @warn "Unknown override key: $(k) (skipping)"
+            end
+        end
+    end
+end
+
 arrayindex = parse(Int, ARGS[1])
 nconfigs   = parse(Int, ARGS[2])
 randomseed = parse(Int64, ARGS[3])  
