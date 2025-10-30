@@ -180,7 +180,18 @@ function diffractive(diff, dip, p_wavefct, p_mc; p_gbw=nothing, p_cq=nothing, p_
             elseif p_run.run == "remote"
                 coeff_dicts = p_run.amp_dict
                 iamp = p_run.arrayindex
-                coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+                # coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+                # Accept either:
+                # - coeff_dicts::AbstractVector where coeff_dicts[i] is a Dict for config i
+                # - coeff_dicts::Dict{Tuple{Int,Int},Float64} representing a single config used for all indices
+                if coeff_dicts isa AbstractVector
+                    coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts[iamp],))
+                elseif coeff_dicts isa Dict
+                    # single dictionary of (m,n)=>amp provided; use it for this job
+                    coeff_dict_amp = merge(p_shape, (coeff_dict=coeff_dicts,))
+                else
+                    error("Unexpected type for p_run.amp_dict: $(typeof(coeff_dicts))")
+                end
 
                 for (i, Δᵢ) in enumerate(Δ_range)
     

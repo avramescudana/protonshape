@@ -64,6 +64,8 @@ if find_norm
     )
     println("find_norm -> best_N₀ = ", best_N₀)
     params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
+else
+    params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = N₀,))
 end
 
 outdir_name = "sigma_$(sigma)_N0_$(params_shape_eff_best_N₀.N₀)"

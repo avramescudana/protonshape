@@ -37,9 +37,9 @@ open(output_file, "w") do io
                     sbatch_command =
                         "sbatch <<EOF
 #!/bin/bash
-#SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_\$config_index
-#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_\$config_index.out
-#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_\$config_index.err
+#SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_$config_index
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$config_index.out
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$config_index.err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=24:00:00
@@ -56,7 +56,7 @@ julia --project=. scripts/runshapefunctions.jl \\
     $savepath \\
     $sigma \\
     $find_norm \\
-    $N₀
+    $N₀ 
 EOF
 "
                     write(io, sbatch_command)
