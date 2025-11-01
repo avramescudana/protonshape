@@ -44,10 +44,11 @@ function optimal_norm_N0(N₀_values, params_shape, params_wavefct, params_mc, p
 end
 
 # Compute χ² at Δ=0 for a given N₀
-function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, params_run, params_norm; Δ₀=0.0)
+function χsq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, params_run, params_norm)
     try
+        Δ₀ = params_norm.Δ₀
         params_shape_norm = merge(params_shape, (N₀ = N₀, Nsamples = params_norm.nsamples_norm))
-        params_mc_Δ0 = merge(params_mc, (Δmin = Δ₀, Δmax = Δ₀, Δlen = 1))
+        params_mc_Δ₀ = merge(params_mc, (Δmin = Δ₀, Δmax = Δ₀, Δlen = 1))
 
         p_run_iter = if params_norm.unique_outdirs
             outdir = joinpath(params_run.outdir, "N0_$(round(N₀; digits=6))")
@@ -56,13 +57,16 @@ function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, 
             params_run
         end
 
-        diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc_Δ0; p_shape=params_shape_norm, p_run=p_run_iter)
+        p_run_iter_local = merge(p_run_iter, (run = "local", savefile = true,
+    run_threads = false,))
+
+        diffractive("coh+incoh", "shapeamp", params_wavefct, params_mc_Δ₀; p_shape=params_shape_norm, p_run=p_run_iter_local)
 
         compute_dir = joinpath(p_run_iter.savepath, p_run_iter.outdir)
         endswith(compute_dir, "/") && (compute_dir = compute_dir[1:end-1])
 
         Nsamples = params_norm.nsamples_norm
-        t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(compute_dir, [Δ₀], Nsamples, p_run_iter, Nsamples)
+        t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(compute_dir, [Δ₀], Nsamples, p_run_iter_local, Nsamples)
 
         tcent_coh_hera, dσdt_coh_hera, Δtot_coh_hera = read_coherent_data(params_norm.coherent_data_path)
 
@@ -74,8 +78,8 @@ function chisq_for_N₀_at_Δ₀(N₀, params_shape, params_wavefct, params_mc, 
 
         return isfinite(χsq) ? χsq : Inf
     catch e
-        @warn "chisq_for_N₀_at_Δ₀ failed" N₀=N₀ exception=e
-        rethrow(e) 
+        @warn "χsq_for_N₀_at_Δ₀ failed" N₀=N₀ exception=e
+        return Inf
     end
 end
 
@@ -87,7 +91,7 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
     # Obj prints every evaluation so you can trace what the optimizer is asking for.
     obj(N) = get!(cache, N) do
         println("[eval] χ² at N₀ = $(N)")
-        f = chisq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
+        f = χsq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
         println("[eval] result: χ²($(N)) = $(f)")
         f
     end
@@ -156,4 +160,110 @@ function find_best_N₀_at_Δ₀_adaptive(params_shape, params_wavefct, params_m
     println("[result] best N₀ = $(best_N₀) with χ² = $(best_χsq)")
 
      return best_N₀
+end
+
+function find_best_N₀_at_Δ₀(params_shape, params_wavefct, params_mc, params_run, params_norm)
+
+    lo = params_norm.min_N₀
+    hi = params_norm.max_N₀
+    factor = get(params_norm, :step_factor, factor)
+    start = clamp(get(params_norm, :start, start), lo, hi)
+    max_steps = get(params_norm, :max_expansions, max_steps)
+    ngrid = get(params_norm, :ngrid, ngrid)   
+
+    cache = Dict{Float64,Float64}()
+
+    obj(N) = get!(cache, N) do
+        println("[eval] χ² at N₀ = $(N)")
+        χsq_for_N₀_at_Δ₀(N, params_shape, params_wavefct, params_mc, params_run, params_norm)
+    end
+
+    s = clamp(start, lo, hi)
+    println("[start] start = $(s) (clamped to [$(lo), $(hi)])")
+    f_s = obj(s)
+    println("[start] χ²(start) = $(f_s)")
+
+    best_up = s
+    f_up = f_s
+    x = s
+    for i in 1:max_steps
+        xtry = clamp(x * factor, lo, hi)
+        if xtry == x
+            println("[up] reached boundary at x=$(x); stop")
+            break
+        end
+        println("[up] trying x = $(xtry)")
+        ftry = obj(xtry)
+        println("[up] χ²($(xtry)) = $(ftry)")
+        if ftry < f_up
+            best_up, f_up = xtry, ftry
+            x = xtry
+        else
+            println("[up] no improvement at x=$(xtry); stop upward expansion")
+            break
+        end
+    end
+
+    best_down = s
+    f_down = f_s
+    x = s
+    for i in 1:max_steps
+        xtry = clamp(x / factor, lo, hi)
+        if xtry == x
+            println("[down] reached boundary at x=$(x); stop")
+            break
+        end
+        println("[down] trying x = $(xtry)")
+        ftry = obj(xtry)
+        println("[down] χ²($(xtry)) = $(ftry)")
+        if ftry < f_down
+            best_down, f_down = xtry, ftry
+            x = xtry
+        else
+            println("[down] no improvement at x=$(xtry); stop downward expansion")
+            break
+        end
+    end
+
+    a = max(lo, min(best_down, best_up, s))
+    b = min(hi, max(best_down, best_up, s))
+    if a == b
+        a = max(lo, s / factor)
+        b = min(hi, s * factor)
+        println("[bracket] a==b fallback → a=$(a), b=$(b)")
+    end
+
+    println("[bracket] scanning linear grid between a=$(a) and b=$(b) with ngrid=$(ngrid)")
+    N₀_values = collect(range(a, stop=b, length=ngrid))
+
+    if all(abs.(N₀_values .- s) .> eps(Float64))
+        push!(N₀_values, s)
+        sort!(N₀_values)
+        N₀_values = unique(N₀_values)
+    end
+
+    N₀_list = Float64[]
+    χsq_list = Float64[]
+    best_χsq = Inf
+    best_N₀ = nothing
+
+    for N₀_val in N₀_values
+        f = try
+            obj(N₀_val)
+        catch e
+            @warn "evaluation failed for N₀ = $N₀_val; setting χ² = Inf" exception=(e,)
+            Inf
+        end
+
+        push!(N₀_list, N₀_val)
+        push!(χsq_list, f)
+
+        if isfinite(f) && f < best_χsq
+            best_χsq = f
+            best_N₀ = N₀_val
+        end
+    end
+
+    println("[result] best N₀ = $(best_N₀) with χ² = $(best_χsq)")
+    return best_N₀, best_χsq, N₀_list, χsq_list
 end

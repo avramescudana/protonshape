@@ -137,9 +137,10 @@ export params_run
 params_norm = (
     Δ₀ = 0.0, # fixed Δ value for normalization
     start = 1.0, # N₀ starting point for adaptive search
-    step_factor = 1.6, # step factor for adaptive search
+    step_factor = 2.0, # step factor for adaptive search
     min_N₀ = 0.001, # minimum N₀ for adaptive search
     max_N₀ = 100, # maximum N₀ for adaptive search
+    ngrid = 21, # number of grid points for linear scan
     max_expansions = 20, # maximum number of expansions for adaptive search
     unique_outdirs = true, # whether to use unique output directories for each run
     brent_reltol = 1e-3, # relative tolerance for Brent's method

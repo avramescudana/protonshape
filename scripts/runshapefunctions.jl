@@ -20,7 +20,6 @@ N₀         = parse(Float64, ARGS[9])
 paramset   = length(ARGS) >= 10 ? ARGS[10] : "default_paramset"
 mode       = length(ARGS) >= 11 ? ARGS[11] : "run"
 
-# Apply per-savepath overrides if present (written by generatebatchjobs.jl)
 override_file = joinpath(savepath, "params_override.jl2")
 if isfile(override_file)
     include(override_file)  
@@ -65,26 +64,19 @@ params_run_eff_base = merge(params_run, (
     arrayindex = arrayindex,
 ))
 
-# Deterministic location for norm file
+params_run_eff_base_norm = merge(params_run_eff_base, (outdir = "sigma_$(sigma)_norm/",))
+
 norm_dir = joinpath(savepath, "norm")
 mkpath(norm_dir)
 norm_file = joinpath(norm_dir, string(paramset, "_sigma_", sigma, "_bestN0.jld2"))
 
 if mode == "norm_only"
-    # Run the adaptive search for best N₀ using params_shape_eff (Nsamples = nsamples_norm passed in as nconfigs)
-    best_N₀ = find_best_N₀_at_Δ₀_adaptive(
-        params_shape_eff,
-        params_wavefct,
-        params_mc,
-        params_run_eff_base,   # use base run params while searching
-        params_norm
-    )
+    # best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
+    best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     println("find_norm -> best_N₀ = ", best_N₀)
 
-    # Save best N₀
     @save norm_file best_N₀ params_shape_eff
     println("Saved best N₀ to $norm_file")
-    # Exit without doing the full diffractive run
     exit()
 end
 
@@ -108,17 +100,15 @@ if N₀ <= 0
                 println("norm file exists but does not contain best_N₀, retrying...")
             end
         end
-        sleep(10)  # wait 10s before retry
+        sleep(10) 
     end
     if !found
         error("Timed out waiting for normalization file: $norm_file")
     end
 else
-    # Use provided N₀
     params_shape_eff = merge(params_shape_eff, (N₀ = N₀,))
 end
 
-# Prepare coeff_dicts as before
 coeff_dicts =
     if params_shape_eff.type == "samemn"
         sample_amp_dict_same_mn(params_shape_eff)
@@ -131,14 +121,8 @@ coeff_dicts =
 params_shape_eff_best_N₀ = params_shape_eff
 
 if find_norm
-    # This branch remains for backward compatibility: if find_norm is true in a run job, compute & use best N₀ locally.
-    best_N₀ = find_best_N₀_at_Δ₀_adaptive(
-        params_shape_eff,
-        params_wavefct,
-        params_mc,
-        params_run_eff_base,   # use base run params while searching
-        params_norm
-    )
+    # best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
+    best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     println("find_norm -> best_N₀ = ", best_N₀)
     params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
 else
