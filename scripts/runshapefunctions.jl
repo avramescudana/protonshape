@@ -70,20 +70,20 @@ norm_dir = joinpath(savepath, "norm")
 mkpath(norm_dir)
 norm_file = joinpath(norm_dir, string(paramset, "_sigma_", sigma, "_bestN0.jld2"))
 
-if mode == "norm_only"
-    # If norm file already exists, use it and skip recomputation
-    if isfile(norm_file)
-        data = JLD2.load(norm_file)
-        if haskey(data, "best_N₀")
-            println("Norm file already exists; using existing best_N₀ = ", data["best_N₀"])
-            exit()   # skip recomputing
-        else
-            println("Norm file exists but missing best_N₀ — recomputing")
-        end
-    end
 
+if mode == "norm_only" && isfile(norm_file)
+    data = JLD2.load(norm_file)
+    if haskey(data, "best_N₀")
+        println("Norm file already exists; using existing best_N₀ = ", data["best_N₀"], " — skipping normalization")
+        exit()
+    else
+        println("Norm file exists but missing best_N₀ — will recompute")
+    end
+end
+
+if mode == "norm_only"
     # best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
-    best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
+    best_N₀, best_χsq, _, _ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     println("find_norm -> best_N₀ = ", best_N₀)
 
     @save norm_file best_N₀ params_shape_eff
@@ -96,7 +96,7 @@ end
 if N₀ <= 0
     println("No N₀ provided; attempting to load best_N₀ from norm file: $norm_file")
     max_tries = 3*360    # 360 * 10s = 3600s = 1 hour
-    local found = false
+    global found = false
     for i in 1:max_tries
         if isfile(norm_file)
             println("Found norm file: $norm_file")
@@ -105,7 +105,9 @@ if N₀ <= 0
                 best_N₀ = data["best_N₀"]
                 println("Loaded best_N₀ = ", best_N₀)
                 global params_shape_eff = merge(params_shape_eff, (N₀ = best_N₀,))
-                found = true
+                find_norm = false
+                params_shape_eff_best_N₀ = params_shape_eff
+                global found = true
                 break
             else
                 println("norm file exists but does not contain best_N₀, retrying...")
