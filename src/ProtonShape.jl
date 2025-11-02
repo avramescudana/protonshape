@@ -73,8 +73,8 @@ params_mc = (
     θbmax = 2π,
     Δmin = 0.0,
     Δmax = 1.0,
-    Δlen = 20,
-    # Δlen = 5,
+    # Δlen = 20,
+    Δlen = 5,
     neval = 100000, # number of evaluations for MC integration
     niters = 10, # number of iterations for MC integration
     error_method = "jackknife", # error type for incoh, "standard", "halfsample" or "jackknife"
@@ -138,8 +138,8 @@ params_norm = (
     Δ₀ = 0.0, # fixed Δ value for normalization
     start = 1.0, # N₀ starting point for adaptive search
     step_factor = 2.0, # step factor for adaptive search
-    min_N₀ = 0.001, # minimum N₀ for adaptive search
-    max_N₀ = 100, # maximum N₀ for adaptive search
+    min_N₀ = 0.01, # minimum N₀ for adaptive search
+    max_N₀ = 10, # maximum N₀ for adaptive search
     ngrid = 21, # number of grid points for linear scan
     max_expansions = 20, # maximum number of expansions for adaptive search
     unique_outdirs = true, # whether to use unique output directories for each run
@@ -176,7 +176,8 @@ include("diffractive.jl")
 export Agbw, Aqc, diffractive, compute_cross_sections
 
 include("normalization.jl")
-export chisq_for_N₀_at_Δ₀, find_best_N₀_at_Δ₀_adaptive
+# export chisq_for_N₀_at_Δ₀, find_best_N₀_at_Δ₀_adaptive
+export chisq_for_N₀_at_Δ₀, find_best_N₀_at_Δ₀
 
 include("data.jl")
 export read_coherent_data

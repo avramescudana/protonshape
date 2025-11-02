@@ -166,10 +166,10 @@ function find_best_N₀_at_Δ₀(params_shape, params_wavefct, params_mc, params
 
     lo = params_norm.min_N₀
     hi = params_norm.max_N₀
-    factor = get(params_norm, :step_factor, factor)
-    start = clamp(get(params_norm, :start, start), lo, hi)
-    max_steps = get(params_norm, :max_expansions, max_steps)
-    ngrid = get(params_norm, :ngrid, ngrid)   
+    factor = get(params_norm, :step_factor, 1.5)
+    start = clamp(get(params_norm, :start, 1.0), lo, hi)
+    max_steps = get(params_norm, :max_expansions, 10)
+    ngrid = get(params_norm, :ngrid, 21)
 
     cache = Dict{Float64,Float64}()
 
