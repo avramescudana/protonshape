@@ -1,21 +1,29 @@
 using Printf
 using Serialization
+using Random
 
 if length(ARGS) < 1
-    error("Usage: julia generatebatchjobs.jl path/to/paramsfile.jl")
+    error("Usage: julia generatebatchjobs.jl path/to/paramsfile.jl [mode]\n  mode: csc (default) | local")
 end
 
 params_file = ARGS[1]
+mode = length(ARGS) >= 2 ? ARGS[2] : "csc"
+mode ∉ ("csc", "local") && error("Unknown mode: $mode — must be 'csc' or 'local'")
 
-params_basename = split(basename(params_file), ".")[1] 
-output_file = joinpath("scripts/sbatchjobs", "submitalljobs$(params_basename).sh")
+params_basename = split(basename(params_file), ".")[1]
+output_dir = joinpath("scripts", "sbatchjobs")
+mkpath(output_dir)
+
+output_file =
+    mode == "csc" ? joinpath(output_dir, "submitalljobs_$(params_basename).sh") :
+                    joinpath(output_dir, "runalljobs_$(params_basename)_local.sh")
 
 include(params_file)
-
 using .SimulationParams
 
 open(output_file, "w") do io
     write(io, "#!/bin/bash\n\n")
+    write(io, "set -euo pipefail\n\n")
 
     for (set_index, params) in enumerate(SimulationParams.param_sets)
         m          = params.m
@@ -28,31 +36,25 @@ open(output_file, "w") do io
         find_norm  = params.find_norm
         nsamples_norm = get(params, :nsamples_norm, 20)
 
-        # Write per-savepath override file if user provided overrides in the param-set
         overrides = get(params, :overrides, nothing)
         if overrides !== nothing
-            mkpath(savepath)  # ensure dir exists on shared FS
+            mkpath(savepath) 
             override_file = joinpath(savepath, "params_override.jl2")
             open(override_file, "w") do f
-                # Create a Julia file that defines params_override as a NamedTuple
                 write(f, "const params_override = $(repr(overrides))\n")
             end
         end
 
-        sigma_values_str = join(sigma_list, " ")
-
         for sigma in sigma_list
-
-            # If this param set requests finding normalization, generate one normalization job per sigma.
-            if find_norm
-                norm_randomseed = rand(Int64)
-
-                sbatch_norm_command =
-                    "sbatch <<EOF
+            if mode == "csc"
+                if find_norm
+                    norm_randomseed = rand(Int64)
+                    sbatch_norm_command =
+"""sbatch <<'EOF'
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma)
-#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).out
-#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).err
+#SBATCH --output=$(savepath)/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).out
+#SBATCH --error=$(savepath)/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=04:00:00
@@ -60,7 +62,6 @@ open(output_file, "w") do io
 
 module load julia
 
-# mode \"norm_only\" will compute best_N₀ using nsamples_norm and write norm file, then exit.
 julia --project=. scripts/runshapefunctions.jl \\
     $(1) \\
     $(nsamples_norm) \\
@@ -74,24 +75,22 @@ julia --project=. scripts/runshapefunctions.jl \\
     $(paramset) \\
     norm_only
 EOF
-"
-                write(io, sbatch_norm_command * "\n")
-            end
 
-            # Per-configuration jobs: these will wait/read the norm file and then run using best N₀.
-            for N₀ in N₀_list
-                for config_index in 1:nconfigs
-                    randomseed = rand(Int64)
+"""
+                    write(io, sbatch_norm_command * "\n")
+                end
 
-                    # pass N₀ = -1.0 as placeholder when we want the job to load the norm file
-                    placeholder_N₀ = find_norm ? -1.0 : N₀
+                for N₀ in N₀_list
+                    for config_index in 1:nconfigs
+                        randomseed = rand(Int64)
+                        placeholder_N₀ = find_norm ? -1.0 : N₀
 
-                    sbatch_command =
-                        "sbatch <<EOF
+                        sbatch_command =
+"""sbatch <<'EOF'
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index)
-#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).out
-#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).err
+#SBATCH --output=$(savepath)/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).out
+#SBATCH --error=$(savepath)/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=24:00:00
@@ -99,7 +98,6 @@ EOF
 
 module load julia
 
-# mode \"run\" will, if N₀ <= 0, wait for and read the normalization file written by the norm_only job.
 julia --project=. scripts/runshapefunctions.jl \\
     $(config_index) \\
     $(nconfigs) \\
@@ -113,12 +111,31 @@ julia --project=. scripts/runshapefunctions.jl \\
     $(paramset) \\
     run
 EOF
-"
-                    write(io, sbatch_command)
+
+"""
+                        write(io, sbatch_command)
+                    end
+                end
+            else
+                if find_norm
+                    norm_randomseed = rand(Int64)
+                    cmd = @sprintf("echo 'Running norm_only: set=%d sigma=%s' \nmkdir -p %s\njulia --project=. scripts/runshapefunctions.jl %d %d %d %d %d %s %g true %g %s norm_only\n\n",
+                        set_index, string(sigma), savepath, 1, nsamples_norm, norm_randomseed, m, nmax, savepath, sigma, -1.0, paramset)
+                    write(io, cmd)
+                end
+
+                for N₀ in N₀_list
+                    for config_index in 1:nconfigs
+                        randomseed = rand(Int64)
+                        placeholder_N₀ = find_norm ? -1.0 : N₀
+                        cmd = @sprintf("echo 'Running job: set=%d paramset=%s sigma=%g config=%d' \nmkdir -p %s\njulia --project=. scripts/runshapefunctions.jl %d %d %d %d %d %s %g false %g %s run\n\n",
+                                set_index, paramset, sigma, config_index, savepath, config_index, nconfigs, randomseed, m, nmax, savepath, sigma, placeholder_N₀, paramset)
+                        write(io, cmd)
+                    end
                 end
             end
         end
     end
 end
 
-println("Generated sbatch jobs in $output_file")
+println("Generated $mode jobs script: $output_file")

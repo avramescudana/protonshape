@@ -3,9 +3,28 @@ using Random, UUIDs
 using JLD2
 
 import Pkg
-Pkg.activate("/users/davrames/protonshape")
+# Pkg.activate("/users/davrames/protonshape")
+# include("/users/davrames/protonshape/src/ProtonShape.jl")
 
-include("/users/davrames/protonshape/src/ProtonShape.jl")
+function find_project_root(startdir = @__DIR__)
+    dir = normpath(startdir)
+    while true
+        if isfile(joinpath(dir, "Project.toml")) || isfile(joinpath(dir, "src", "ProtonShape.jl"))
+            return dir
+        end
+        parent = dirname(dir)
+        if parent == dir
+            error("Could not find project root containing Project.toml or src/ProtonShape.jl")
+        end
+        dir = parent
+    end
+end
+
+proj_root = find_project_root()            
+Pkg.activate(proj_root)
+
+include(joinpath(proj_root, "src", "ProtonShape.jl"))
+
 using .ProtonShape
 
 arrayindex = parse(Int, ARGS[1])
@@ -82,7 +101,6 @@ if mode == "norm_only" && isfile(norm_file)
 end
 
 if mode == "norm_only"
-    # best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     best_N₀, best_χsq, _, _ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     println("find_norm -> best_N₀ = ", best_N₀)
 
@@ -105,8 +123,8 @@ if N₀ <= 0
                 best_N₀ = data["best_N₀"]
                 println("Loaded best_N₀ = ", best_N₀)
                 global params_shape_eff = merge(params_shape_eff, (N₀ = best_N₀,))
-                find_norm = false
-                params_shape_eff_best_N₀ = params_shape_eff
+                global find_norm = false
+                global params_shape_eff_best_N₀ = params_shape_eff
                 global found = true
                 break
             else
@@ -134,7 +152,6 @@ coeff_dicts =
 params_shape_eff_best_N₀ = params_shape_eff
 
 if find_norm
-    # best_N₀ = find_best_N₀_at_Δ₀_adaptive(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
     println("find_norm -> best_N₀ = ", best_N₀)
     params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))

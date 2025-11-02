@@ -140,12 +140,12 @@ params_norm = (
     step_factor = 2.0, # step factor for adaptive search
     min_N₀ = 0.1, # minimum N₀ for adaptive search
     max_N₀ = 5, # maximum N₀ for adaptive search
-    ngrid = 11, # number of grid points for linear scan
+    ngrid = 3, # number of grid points for linear scan
     max_expansions = 20, # maximum number of expansions for adaptive search
     unique_outdirs = true, # whether to use unique output directories for each run
     brent_reltol = 1e-3, # relative tolerance for Brent's method
-    coherent_data_path = "/users/davrames/protonshape/data/jpsi_coh_hera.txt", # path to coherent data for normalization
-    # coherent_data_path = "/Users/dana/Work/protonshape/data/jpsi_coh_hera.txt", 
+    # coherent_data_path = "/users/davrames/protonshape/data/jpsi_coh_hera.txt", # path to coherent data for normalization
+    coherent_data_path = "/Users/dana/Work/protonshape/data/jpsi_coh_hera.txt", 
     nsamples_norm = 1, 
 )
 

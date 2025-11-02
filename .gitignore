@@ -38,6 +38,7 @@ new_env/
 # *.txt
 *.log
 *.out
+*.err
 
 # Sbatch job scripts
 /scripts/sbatchjobs/
