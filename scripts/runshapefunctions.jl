@@ -28,8 +28,8 @@ include(joinpath(proj_root, "src", "ProtonShape.jl"))
 using .ProtonShape
 
 arrayindex = parse(Int, ARGS[1])
-nconfigs   = parse(Int, ARGS[2])
-randomseed = parse(Int64, ARGS[3])  
+arg2 = parse(Int, ARGS[2]) # nconfigs OR nsamples_norm depending on mode
+randomseed = parse(Int64, ARGS[3])
 m          = parse(Int, ARGS[4])
 nmax       = parse(Int, ARGS[5])
 savepath   = ARGS[6]
@@ -39,7 +39,17 @@ N₀         = parse(Float64, ARGS[9])
 paramset   = length(ARGS) >= 10 ? ARGS[10] : "default_paramset"
 mode       = length(ARGS) >= 11 ? ARGS[11] : "run"
 
+# Determine nconfigs vs nsamples_norm consistently:
+if mode == "norm_only"
+    nsamples_norm = arg2
+    nconfigs = nsamples_norm      # use same value when building params_shape_eff for normalization runs
+else
+    nconfigs = arg2
+    nsamples_norm = get(params_norm, :nsamples_norm, 1)  # fallback to default from ProtonShape.params_norm
+end
+
 override_file = joinpath(savepath, "params_override.jl2")
+
 if isfile(override_file)
     include(override_file)  
     if isdefined(Main, :params_override)
@@ -101,7 +111,8 @@ if mode == "norm_only" && isfile(norm_file)
 end
 
 if mode == "norm_only"
-    best_N₀, best_χsq, _, _ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
+    params_norm_eff = merge(params_norm, (nsamples_norm = nsamples_norm,))
+    best_N₀, best_χsq, _, _ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm_eff)
     println("find_norm -> best_N₀ = ", best_N₀)
 
     @save norm_file best_N₀ params_shape_eff
@@ -152,7 +163,8 @@ coeff_dicts =
 params_shape_eff_best_N₀ = params_shape_eff
 
 if find_norm
-    best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm)
+    params_norm_eff = merge(params_norm, (nsamples_norm = nsamples_norm,))
+    best_N₀ = find_best_N₀_at_Δ₀(params_shape_eff, params_wavefct, params_mc, params_run_eff_base_norm, params_norm_eff)
     println("find_norm -> best_N₀ = ", best_N₀)
     params_shape_eff_best_N₀ = merge(params_shape_eff, (N₀ = best_N₀,))
 else

@@ -46,15 +46,19 @@ open(output_file, "w") do io
         end
 
         for sigma in sigma_list
+            # sanitize values used inside bash variable names (no dots or other invalid chars)
+            sigma_sanit = replace(string(sigma), "." => "_")
+            paramset_sanit = replace(string(paramset), r"[^A-Za-z0-9_]" => "_")
+
             if mode == "csc"
                 if find_norm
                     norm_randomseed = rand(Int64)
-                    sbatch_norm_command =
-"""sbatch <<'EOF'
+sbatch_norm_command = """
+jobid_norm_$(set_index)_$(paramset_sanit)_$(sigma_sanit)=\$(sbatch --parsable <<EOF
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma)
-#SBATCH --output=$(savepath)/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).out
-#SBATCH --error=$(savepath)/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).err
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).out
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=04:00:00
@@ -75,7 +79,7 @@ julia --project=. scripts/runshapefunctions.jl \\
     $(paramset) \\
     norm_only
 EOF
-
+)
 """
                     write(io, sbatch_norm_command * "\n")
                 end
@@ -85,16 +89,17 @@ EOF
                         randomseed = rand(Int64)
                         placeholder_N₀ = find_norm ? -1.0 : N₀
 
-                        sbatch_command =
-"""sbatch <<'EOF'
+sbatch_command =
+"""sbatch <<EOF
 #!/bin/bash
 #SBATCH --job-name=runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index)
-#SBATCH --output=$(savepath)/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).out
-#SBATCH --error=$(savepath)/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).err
+#SBATCH --output=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).out
+#SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_$(set_index)_$(paramset)_$(sigma)_$(config_index).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
 #SBATCH --time=24:00:00
 #SBATCH --mem-per-cpu=4000
+$(find_norm ? "#SBATCH --dependency=afterok:\${jobid_norm_$(set_index)_$(paramset_sanit)_$(sigma_sanit)}" : "")
 
 module load julia
 
