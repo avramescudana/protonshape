@@ -61,7 +61,7 @@ jobid_norm_$(set_index)_$(paramset_sanit)_$(sigma_sanit)=\$(sbatch --parsable <<
 #SBATCH --error=/scratch/lappi/dana/slurm_out/runshapefunctions_norm_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
-#SBATCH --time=04:00:00
+#SBATCH --time=60:00:00
 #SBATCH --mem-per-cpu=4000
 
 module load julia
