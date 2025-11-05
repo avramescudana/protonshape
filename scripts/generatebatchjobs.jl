@@ -72,7 +72,7 @@ $sbatch_cmd --parsable <<'GRID_EOF'
 #SBATCH --error=$(slurm_out_dir)/grid_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
-#SBATCH --time=00:10:00
+#SBATCH --time=01:00:00
 #SBATCH --mem-per-cpu=1000
 
 module load julia
@@ -114,7 +114,7 @@ $sbatch_cmd --parsable --dependency=afterok:\$jobid_grid_$(set_index)_$(paramset
 #SBATCH --error=$(slurm_out_dir)/submit_array_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
-#SBATCH --time=00:10:00
+#SBATCH --time=01:00:00
 #SBATCH --mem-per-cpu=1000
 
 set -euo pipefail
@@ -146,7 +146,7 @@ $sbatch_cmd --parsable --array=1-\${N} <<'NORM_ARRAY_EOF'
 #SBATCH --error=$(slurm_out_dir)/norm_point_$(set_index)_$(paramset)_$(sigma).%A_%a.err
 #SBATCH --account=lappi
 #SBATCH --partition=small
-#SBATCH --time=04:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem-per-cpu=4000
 
 module load julia
@@ -190,7 +190,7 @@ $sbatch_cmd --parsable --dependency=afterok:\${jobid_array} <<'COLLECT_EOF'
 #SBATCH --error=$(slurm_out_dir)/norm_collect_$(set_index)_$(paramset)_$(sigma).err
 #SBATCH --account=lappi
 #SBATCH --partition=small
-#SBATCH --time=00:10:00
+#SBATCH --time=01:00:00
 #SBATCH --mem-per-cpu=2000
 
 module load julia

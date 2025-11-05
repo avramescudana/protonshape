@@ -3,10 +3,10 @@ module SimulationParams
 const param_sets = [
     (
         m = 3,
-        nmax = 3,
-        sigma_list = [1.0],
-        savepath = "/scratch/lappi/dana/protonshape_out/m_3_nmax_3_find_norm_sigma_1.0_replacetp",
-        paramset = "m_3_nmax_3_find_norm_sigma_1.0_replacetpt", 
+        nmax = 4,
+        sigma_list = [5.0],
+        savepath = "/scratch/lappi/dana/protonshape_out/m_3_nmax_4_find_norm_sigma_5.0_replacetp",
+        paramset = "m_3_nmax_4_find_norm_sigma_5.0_replacetpt", 
         nconfigs = 300,
         N₀_list = [0.6], # Placeholder, not used when find_norm=true
         find_norm = true,
