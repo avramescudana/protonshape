@@ -40,12 +40,14 @@ mode       = length(ARGS) >= 11 ? ARGS[11] : "run"
 
 # Determine nconfigs vs nsamples_norm consistently
 if mode == "norm_only" || mode == "norm_point"
-    nsamples_norm = arg2         # should be 4 for your use case
+    nsamples_norm = arg2
     nconfigs      = nsamples_norm
 else
     nconfigs      = arg2
     nsamples_norm = get(params_norm, :nsamples_norm, 1)
 end
+
+# ----------------- apply overrides if present -----------------
 
 override_file = joinpath(savepath, "params_override.jl2")
 
@@ -56,7 +58,7 @@ if isfile(override_file)
             if isdefined(ProtonShape, k)
                 base   = getfield(ProtonShape, k)
                 merged = merge(base, v)
-                @info "Applying override for $(k)"
+                @info "Applying override for $(k)" v
                 @eval Main $(k) = $merged
             else
                 @warn "Unknown override key: $(k) (skipping)"
@@ -244,7 +246,7 @@ params_shape_eff_best_N₀ = params_shape_eff
 diff = "coh+incoh"
 dip  = "shapeamp"
 
-# ---------- SPECIAL HANDLING: norm_point → 4 configs per N₀ ----------
+# ---------- norm_point: multiple configs per N₀ ----------
 
 if mode == "norm_point"
     base_outdir = params_run_eff_base_norm.outdir   # "norm"
@@ -271,7 +273,6 @@ if mode == "norm_point"
         end
     end
 
-    # we're done for norm_point
     exit()
 end
 
