@@ -80,7 +80,11 @@ function shapedipole(r, b, θb, Tp_shape, p_shape)
         if Tp_val < 0
             # @warn "Tp<0 at b=$b, θb=$θb."
             if p_shape.replacetp
-                Tp_val = 0.0
+                if p_shape.typetp == "mod"
+                    Tp_val = abs(Tp_val)
+                elseif p_shape.typetp == "null"
+                    Tp_val = 0.0
+                end
             end
         end
     end
