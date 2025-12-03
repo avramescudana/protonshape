@@ -120,6 +120,67 @@ if mode == "norm_only"
     exit()
 end
 
+# new: write a deterministic N0 grid (no MC) and save to plain text for bash
+if mode == "norm_grid"
+    println("Generating N₀ grid (norm_grid mode)")
+
+    lo = params_norm.min_N₀
+    hi = params_norm.max_N₀
+    start = params_norm.start
+    ngrid = get(params_norm, :ngrid, 21)
+    step_factor = get(params_norm, :step_factor, 1.5)
+
+    # simple bracket around start (deterministic, no χ² evals)
+    a = max(lo, start / step_factor)
+    b = min(hi, start * step_factor)
+    if a >= b
+        # fallback to full linear range
+        a, b = lo, hi
+    end
+
+    N0_values = collect(range(a, stop=b, length=ngrid))
+    if all(abs.(N0_values .- start) .> eps(Float64))
+        push!(N0_values, start)
+        sort!(N0_values)
+        N0_values = unique(N0_values)
+    end
+
+    mkpath(norm_dir)
+    grid_jld = joinpath(norm_dir, string(paramset, "_sigma_", sigma, "_N0grid.jld2"))
+    grid_txt = joinpath(norm_dir, string(paramset, "_sigma_", sigma, "_N0grid.txt"))
+
+    @save grid_jld N0_values
+    open(grid_txt, "w") do f
+        write(f, join(string.(N0_values), " "))
+    end
+
+    println("Wrote N₀ grid files: ", grid_jld, "  ", grid_txt)
+    exit()
+end
+
+# modify norm_collect to accept a grid txt path (ARGS[12]) or default to naming convention
+if mode == "norm_collect"
+    # ARGS[12] (optional) = path to N0 grid txt file
+    grid_txt = length(ARGS) >= 12 ? ARGS[12] : joinpath(norm_dir, string(paramset, "_sigma_", sigma, "_N0grid.txt"))
+    if !isfile(grid_txt)
+        error("norm_collect: grid file not found: $grid_txt")
+    end
+    N0_values = parse.(Float64, split(chomp(read(grid_txt, String))))
+    println("norm_collect: reading grid from $grid_txt -> $(length(N0_values)) entries")
+
+    # use existing ProtonShape helpers (we added find_best_N₀_from_saved earlier)
+    best_N₀, best_χsq, _, _ = ProtonShape.find_best_N₀_from_saved(N0_values, params_run_eff_base_norm, params_norm)
+
+    if best_N₀ === nothing
+        error("norm_collect: failed to determine best_N₀")
+    end
+
+    println("norm_collect -> best_N₀ = ", best_N₀, " χ² = ", best_χsq)
+    @save norm_file best_N₀ best_χsq
+    println("Saved best N₀ to $norm_file")
+    exit()
+end
+
 # mode == "run"
 # If N₀ is a placeholder (<= 0), wait for norm_file and load best_N₀
 if N₀ <= 0

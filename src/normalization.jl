@@ -267,3 +267,55 @@ function find_best_N₀_at_Δ₀(params_shape, params_wavefct, params_mc, params
     println("[result] best N₀ = $(best_N₀) with χ² = $(best_χsq)")
     return best_N₀, best_χsq, N₀_list, χsq_list
 end
+
+function χsq_from_saved(N₀, params_run, params_norm)
+    try
+        p_run_iter = if params_norm.unique_outdirs
+            outdir = joinpath(params_run.outdir, "N0_$(round(N₀; digits=6))")
+            merge(params_run, (outdir = outdir,))
+        else
+            params_run
+        end
+
+        compute_dir = joinpath(p_run_iter.savepath, p_run_iter.outdir)
+        endswith(compute_dir, "/") && (compute_dir = compute_dir[1:end-1])
+
+        Nsamples = params_norm.nsamples_norm
+        Δ0 = params_norm.Δ₀
+
+        # read precomputed cross sections from compute_dir
+        t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err =
+            compute_cross_sections(compute_dir, [Δ0], Nsamples, p_run_iter, Nsamples)
+
+        tcent_coh_hera, dσdt_coh_hera, Δtot_coh_hera = read_coherent_data(params_norm.coherent_data_path)
+
+        model_val = dσdt_coh[1]
+        data_val  = dσdt_coh_hera[1]
+        data_err  = Δtot_coh_hera[1]
+
+        χsq = ((model_val - data_val) / data_err)^2
+        return isfinite(χsq) ? χsq : Inf
+    catch e
+        @warn "χsq_from_saved failed" N₀=N₀ exception=e
+        return Inf
+    end
+end
+
+function find_best_N₀_from_saved(N₀_values::AbstractVector{<:Real}, params_run, params_norm)
+    best_χsq = Inf
+    best_N₀ = nothing
+    Nlist = Float64[]
+    χlist = Float64[]
+
+    for N0 in N₀_values
+        f = χsq_from_saved(N0, params_run, params_norm)
+        push!(Nlist, float(N0))
+        push!(χlist, f)
+        if isfinite(f) && f < best_χsq
+            best_χsq = f
+            best_N₀ = float(N0)
+        end
+    end
+
+    return best_N₀, best_χsq, Nlist, χlist
+end
