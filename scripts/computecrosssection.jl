@@ -1,5 +1,29 @@
-include("../src/ProtonShape.jl")
-using .ProtonShape
+# include("../src/ProtonShape.jl")
+# using .ProtonShape
+
+import Pkg
+
+function find_project_root(startdir = @__DIR__)
+    dir = normpath(startdir)
+    while true
+        if isfile(joinpath(dir, "Project.toml")) || isfile(joinpath(dir, "src", "ProtonShape.jl"))
+            return dir
+        end
+        parent = dirname(dir)
+        if parent == dir
+            error("Could not find project root containing Project.toml or src/ProtonShape.jl")
+        end
+        dir = parent
+    end
+end
+
+proj_root = find_project_root()
+Pkg.activate(proj_root)
+
+# include(joinpath(proj_root, "src", "ProtonShape.jl"))
+# using .ProtonShape
+using ProtonShape
+
 using Serialization
 
 using JLD2
