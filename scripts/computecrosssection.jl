@@ -18,7 +18,7 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
 
             params = JLD2.load(params_file)
             params_mc = params["params_mc"]
-            params_shape = params["params_shape_eff"]
+            params_shape = params["params_shape_eff_best_N₀"]
             params_run = params["params_run_sigma"]
             # loaded = open(params_file, "r") do io
             #     deserialize(io)
@@ -26,11 +26,14 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
 
             # (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
 
-            Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
+            # Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
+            Δ_range = collect(range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen))
             Nsamples = params_shape.Nsamples
 
-            t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(
-                subdir_path, Δ_range, Nsamples, params_run, nconfigs)
+            # t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(
+            #     subdir_path, Δ_range, Nsamples, params_run, nconfigs)
+            t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err =
+                compute_cross_sections(subdir_path, Δ_range, Nsamples, params_run, nconfigs)
 
             results_file = joinpath(subdir_path, "cross_sections.jld2")
             @save results_file t_range dσdt_coh dσdt_coh_err dσdt_incoh dσdt_incoh_err
@@ -42,7 +45,7 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
         # params_shape = params["p_shape"]
         # params_run = params["p_run"]
         params_mc = params["params_mc"]
-        params_shape = params["params_shape_eff"]
+        params_shape = params["params_shape_eff_best_N₀"]
         params_run = params["params_run_sigma"]
         # loaded = open(params_file, "r") do io
         #     deserialize(io)
@@ -50,12 +53,14 @@ function main(params_path::String, nconfigs::Int, multiple_configs::Int)
 
         # (diff, dip, params_wavefc2, params_mc, params_gbw, params_cq, params_shape, params_run) = loaded
 
-        Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
+        # Δ_range = range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen)
+        Δ_range = collect(range(params_mc.Δmin, stop=params_mc.Δmax, length=params_mc.Δlen))
         Nsamples = params_shape.Nsamples
 
-        t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(
-            params_path, Δ_range, Nsamples, params_run, nconfigs, multiple_configs
-        )
+        # t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err = compute_cross_sections(
+        #     params_path, Δ_range, Nsamples, params_run, nconfigs, multiple_configs)
+        t_range, dσdt_coh, dσdt_coh_err, dσdt_incoh, dσdt_incoh_err =
+            compute_cross_sections(params_path, Δ_range, Nsamples, params_run, nconfigs)
 
         results_file = joinpath(params_path, "cross_sections.jld2")
         @save results_file t_range dσdt_coh dσdt_coh_err dσdt_incoh dσdt_incoh_err
