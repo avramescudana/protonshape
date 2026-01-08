@@ -357,3 +357,217 @@ end
         end
     end
 end
+
+"""
+Plot grid of random configurations with individual colorbars
+"""
+Base.@kwdef struct RandomConfigurationsGrid
+    m::Int
+    nmax::Int
+    L::Float64
+    Nx::Int
+    Ny::Int
+    func_type::String
+    α::Float64
+    env_func::Function
+    a::Float64
+    σ::Float64
+    n_configs::Int  # Total number of configurations to generate
+    nrows::Int      # Number of rows in grid
+    ncols::Int      # Number of columns in grid
+    seed::Int = 42
+    checktp::Bool = false
+    show_coeffs::Bool = true  # Show coefficients in title
+end
+
+@recipe function f(rcg::RandomConfigurationsGrid)
+    fontfamily --> "Computer Modern"
+
+    # Set random seed for reproducibility
+    Random.seed!(rcg.seed)
+
+    # Sample configurations
+    damp = Normal(0, rcg.σ)
+
+    x_vals = range(-rcg.L, rcg.L, length=rcg.Nx)
+    y_vals = range(-rcg.L, rcg.L, length=rcg.Ny)
+    X = repeat(x_vals, 1, rcg.Ny)
+    Y = repeat(y_vals', rcg.Nx, 1)
+
+    layout := (rcg.nrows, rcg.ncols)
+    size := (rcg.ncols * 240, rcg.nrows * 220 + 30)
+    dpi := 300
+    labelfontsize := 7
+    tickfontsize := 5
+    titlefontsize := 7
+    left_margin := -3Plots.mm
+    right_margin := -3Plots.mm
+    top_margin := -4Plots.mm
+    bottom_margin := -2Plots.mm
+    plot_titlevspan := 0.12
+
+    for i in 1:rcg.n_configs
+        # Sample coefficients for this configuration
+        coeff_dict = Dict((rcg.m, n) => rand(damp) for n in 1:rcg.nmax)
+
+        # Compute thickness function
+        if rcg.func_type == "circmemb"
+            dens = circmemb_2D(X, Y, coeff_dict; a=rcg.a)
+        elseif rcg.func_type == "Tp"
+            dens = Tp_2D(X, Y, coeff_dict; α=rcg.α, envfunc=rcg.env_func, a=rcg.a)
+        else
+            error("Unknown function type: $(rcg.func_type)")
+        end
+
+        if rcg.checktp
+            dens = max.(dens, 0.0)
+        end
+
+        @series begin
+            seriestype := :heatmap
+            subplot := i
+            xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+            ylabel := L"y\;\mathrm{[GeV^{-1}]}"
+            color := :inferno
+            aspect_ratio := :equal
+            colorbar := true
+            colorbar_title := ""
+            colorbar_titlefontsize := 5
+            colorbar_tickfontsize := 4
+            right_margin := -1Plots.mm
+            framestyle := :box
+            xlims := (-rcg.L, rcg.L)
+            ylims := (-rcg.L, rcg.L)
+
+            if rcg.show_coeffs
+                # Create title with coefficient values - simple format
+                coeff_parts = []
+                for n in 1:rcg.nmax
+                    val = round(coeff_dict[(rcg.m,n)], digits=1)
+                    push!(coeff_parts, "($(rcg.m),$(n)): $(val)")
+                end
+                title := join(coeff_parts, ", ")
+            else
+                title := "Config $i"
+            end
+
+            x_vals, y_vals, dens
+        end
+    end
+end
+
+"""
+Plot grid of random configurations with shared colorbar range
+"""
+Base.@kwdef struct RandomConfigurationsGridShared
+    m::Int
+    nmax::Int
+    L::Float64
+    Nx::Int
+    Ny::Int
+    func_type::String
+    α::Float64
+    env_func::Function
+    a::Float64
+    σ::Float64
+    n_configs::Int
+    nrows::Int
+    ncols::Int
+    seed::Int = 42
+    checktp::Bool = false
+    show_coeffs::Bool = true
+    clims::Union{Nothing, Tuple{Float64, Float64}} = nothing  # Shared colorbar limits
+end
+
+@recipe function f(rcg::RandomConfigurationsGridShared)
+    fontfamily --> "Computer Modern"
+
+    # Set random seed for reproducibility
+    Random.seed!(rcg.seed)
+
+    # Sample configurations
+    damp = Normal(0, rcg.σ)
+
+    x_vals = range(-rcg.L, rcg.L, length=rcg.Nx)
+    y_vals = range(-rcg.L, rcg.L, length=rcg.Ny)
+    X = repeat(x_vals, 1, rcg.Ny)
+    Y = repeat(y_vals', rcg.Nx, 1)
+
+    # Pre-generate all configurations to find global min/max if needed
+    all_dens = []
+    all_coeffs = []
+
+    for i in 1:rcg.n_configs
+        coeff_dict = Dict((rcg.m, n) => rand(damp) for n in 1:rcg.nmax)
+        push!(all_coeffs, coeff_dict)
+
+        if rcg.func_type == "circmemb"
+            dens = circmemb_2D(X, Y, coeff_dict; a=rcg.a)
+        elseif rcg.func_type == "Tp"
+            dens = Tp_2D(X, Y, coeff_dict; α=rcg.α, envfunc=rcg.env_func, a=rcg.a)
+        else
+            error("Unknown function type: $(rcg.func_type)")
+        end
+
+        if rcg.checktp
+            dens = max.(dens, 0.0)
+        end
+
+        push!(all_dens, dens)
+    end
+
+    # Determine color limits
+    if rcg.clims === nothing
+        global_min = minimum(minimum.(all_dens))
+        global_max = maximum(maximum.(all_dens))
+        color_lims = (global_min, global_max)
+    else
+        color_lims = rcg.clims
+    end
+
+    layout := (rcg.nrows, rcg.ncols)
+    size := (rcg.ncols * 240, rcg.nrows * 220 + 30)
+    dpi := 300
+    labelfontsize := 7
+    tickfontsize := 5
+    titlefontsize := 7
+    left_margin := -3Plots.mm
+    right_margin := -3Plots.mm
+    top_margin := -4Plots.mm
+    bottom_margin := -2Plots.mm
+    plot_titlevspan := 0.12
+
+    for i in 1:rcg.n_configs
+        @series begin
+            seriestype := :heatmap
+            subplot := i
+            xlabel := L"x\;\mathrm{[GeV^{-1}]}"
+            ylabel := L"y\;\mathrm{[GeV^{-1}]}"
+            color := :inferno
+            aspect_ratio := :equal
+            colorbar := true
+            colorbar_title := ""
+            colorbar_titlefontsize := 5
+            colorbar_tickfontsize := 4
+            right_margin := -1Plots.mm
+            framestyle := :box
+            clims := color_lims
+            xlims := (-rcg.L, rcg.L)
+            ylims := (-rcg.L, rcg.L)
+
+            if rcg.show_coeffs
+                # Create title with coefficient values - simple format
+                coeff_parts = []
+                for n in 1:rcg.nmax
+                    val = round(all_coeffs[i][(rcg.m,n)], digits=1)
+                    push!(coeff_parts, "($(rcg.m),$(n)): $(val)")
+                end
+                title := join(coeff_parts, ", ")
+            else
+                title := "Config $i"
+            end
+
+            x_vals, y_vals, all_dens[i]
+        end
+    end
+end
