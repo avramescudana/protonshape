@@ -4,7 +4,7 @@ module ProtonShape
 Packages
 """
 
-using SpecialFunctions # For Bessel 
+using SpecialFunctions # For Bessel
 using Symbolics # Symbolic calculation, partial derivatives
 using MCIntegration # MC algorithms for high-dimensional integrals
 using Distributions # Random numbers, Gaussian distributions
@@ -16,8 +16,11 @@ using Distributed # Multi-processing on single node
 using ClusterManagers # Use by CSC for Slurm job submission
 using JLD2 # Save to Julia file
 using Serialization # Save to Julia file
-using Interpolations 
+using Interpolations
 using Optim
+using FFTW # For FFT in 3D noise generation
+using Random # For random number generation
+using SphericalHarmonics # For spherical harmonics Y_l^m
 
 """
 Default parameters
@@ -171,6 +174,9 @@ export ϕ, ΨᵥΨ
 
 include("shape.jl")
 export Tp_shape, shapedipole, sample_amp_dict_same_mn, sample_amp_dict_samem_multin, gaussenv, circmemb_2D, Tp_2D
+export angular_modulation_3D, sphermemb, sphermemb_3D
+export generate_noise_field_3D, combine_density_with_noise
+export Tp_3D, Tp_shape_3D, Tp_shape_3D_cartesian, integrate_along_z
 
 include("dipole.jl") 
 export Qₛ, T, gbwdipole

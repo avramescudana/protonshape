@@ -1,7 +1,3 @@
-include("wavefunction.jl") # Overlap of photon and vector meson wavefunctions
-include("dipole.jl") # GWB and CQ dipole models
-# include("shape.jl") # Circular membrane model 
-
 """
 Main functions
 """
